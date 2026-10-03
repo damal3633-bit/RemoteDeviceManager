@@ -6,10 +6,10 @@ public final class FirebaseConfig {
     }
 
     public static final String API_KEY =
-            "PASTE_YOUR_FIREBASE_WEB_API_KEY_HERE";
+            "AIzaSyCgaIxkhQ88aqdwt8Mu-wynYdj2GcoNPIs";
 
     public static final String PROJECT_ID =
-            "PASTE_YOUR_FIREBASE_PROJECT_ID_HERE";
+            "remotedevicemanager-bcd2f";
 
     public static final String FIRESTORE_DATABASE =
             "(default)";
