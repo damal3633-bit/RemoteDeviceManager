@@ -1,0 +1,3120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#04070a" />
+<title>CYBER//CONTROL — Device Control Center</title>
+<style>
+/* ============================================================
+   CYBER//CONTROL  —  Core tokens
+   ============================================================ */
+:root{
+  --bg:#04070a;
+  --bg-2:#060c0d;
+  --panel-a:rgba(13,22,22,.86);
+  --panel-b:rgba(5,10,11,.94);
+  --neon:#00ff9c;
+  --neon-2:#00c97b;
+  --neon-soft:rgba(0,255,156,.14);
+  --cyan:#25e0ff;
+  --red:#ff4d4d;
+  --amber:#ffc247;
+  --text:#cfe9df;
+  --muted:#6f8b83;
+  --muted-2:#4a625c;
+  --line:rgba(0,255,156,.16);
+  --line-2:rgba(0,255,156,.28);
+  --shadow-deep:0 20px 46px rgba(0,0,0,.62);
+  --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+*{box-sizing:border-box;}
+[hidden]{display:none !important;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.45;
+  overflow-x:hidden;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:44px;
+  transition:padding-bottom .3s ease;
+}
+body.term-open{padding-bottom:250px;}
+@media (max-width:760px){ body.term-open{padding-bottom:210px;} }
+
+button{font-family:inherit;color:inherit;}
+::selection{background:rgba(0,255,156,.28);color:#eafff6;}
+
+/* Scrollbars */
+*::-webkit-scrollbar{width:8px;height:8px;}
+*::-webkit-scrollbar-track{background:rgba(0,255,156,.04);}
+*::-webkit-scrollbar-thumb{background:rgba(0,255,156,.22);border-radius:8px;}
+*::-webkit-scrollbar-thumb:hover{background:rgba(0,255,156,.4);}
+
+/* ============================================================
+   Background layers
+   ============================================================ */
+#matrix{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  opacity:.15;
+}
+.cyber-grid{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(0,255,156,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,156,.07) 1px, transparent 1px);
+  background-size:46px 46px;
+  animation:gridPan 14s linear infinite;
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 25%, #000 10%, transparent 78%);
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 25%, #000 10%, transparent 78%);
+}
+@keyframes gridPan{ to{ background-position:46px 46px, 46px 46px; } }
+.vignette{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,255,156,.07), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 50% 120%, rgba(0,0,0,.85), transparent 60%);
+}
+.scanbeam{
+  position:fixed;left:0;right:0;height:180px;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(0,255,156,.045), transparent);
+  animation:beamMove 9s linear infinite;
+}
+@keyframes beamMove{ 0%{top:-200px;} 100%{top:110%;} }
+
+/* ============================================================
+   Header
+   ============================================================ */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:14px;
+  min-height:60px;
+  padding:8px 16px;
+  background:linear-gradient(180deg, rgba(6,13,13,.97), rgba(4,8,9,.86));
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+.brand{display:flex;align-items:center;gap:10px;flex:0 0 auto;}
+.brand-mark{
+  width:34px;height:34px;flex:0 0 auto;
+  display:grid;place-items:center;
+  border-radius:8px;
+  border:1px solid var(--line-2);
+  background:linear-gradient(160deg,#0d1c18,#050b0a);
+  color:var(--neon);
+  font-size:16px;
+  box-shadow:0 0 16px rgba(0,255,156,.2), inset 0 1px 0 rgba(0,255,156,.18);
+  animation:markPulse 3.6s ease-in-out infinite;
+}
+@keyframes markPulse{
+  0%,100%{ box-shadow:0 0 14px rgba(0,255,156,.16), inset 0 1px 0 rgba(0,255,156,.18); }
+  50%{ box-shadow:0 0 26px rgba(0,255,156,.36), inset 0 1px 0 rgba(0,255,156,.3); }
+}
+.brand h1{
+  margin:0;font-size:15px;letter-spacing:.2em;font-weight:700;
+  color:#eafff6;text-shadow:0 0 14px rgba(0,255,156,.5);white-space:nowrap;
+}
+.brand h1 span{color:var(--neon);opacity:.85;}
+.brand-sub{
+  font-size:9px;letter-spacing:.22em;color:var(--muted-2);margin-top:1px;white-space:nowrap;
+}
+.chan{
+  display:flex;align-items:center;gap:9px;
+  margin-left:8px;padding:6px 12px;
+  border:1px solid var(--line);border-radius:20px;
+  background:rgba(0,255,156,.035);
+  font-size:10px;letter-spacing:.16em;color:var(--neon);
+  white-space:nowrap;
+}
+.pulse-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--neon);
+  box-shadow:0 0 10px var(--neon);position:relative;flex:0 0 auto;
+}
+.pulse-dot::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--neon);opacity:.7;
+  animation:pulseRing 2s ease-out infinite;
+}
+@keyframes pulseRing{
+  0%{ transform:scale(.6); opacity:.8; }
+  100%{ transform:scale(1.9); opacity:0; }
+}
+.chan-bars{display:flex;align-items:flex-end;gap:2px;height:12px;}
+.chan-bars i{
+  width:3px;background:var(--neon);border-radius:1px;display:block;opacity:.85;
+  animation:barWave 1.4s ease-in-out infinite;
+}
+.chan-bars i:nth-child(1){height:5px;animation-delay:0s;}
+.chan-bars i:nth-child(2){height:9px;animation-delay:.15s;}
+.chan-bars i:nth-child(3){height:6px;animation-delay:.3s;}
+.chan-bars i:nth-child(4){height:11px;animation-delay:.45s;}
+@keyframes barWave{ 0%,100%{transform:scaleY(.5);} 50%{transform:scaleY(1);} }
+
+.top-spacer{flex:1 1 auto;min-width:0;}
+.top-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto;}
+.icon-btn{
+  width:34px;height:34px;display:grid;place-items:center;
+  border-radius:8px;cursor:pointer;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,#0e1a18,#060d0c);
+  color:var(--text);font-size:14px;
+  box-shadow:0 3px 0 -1px #000, inset 0 1px 0 rgba(0,255,156,.1);
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s;
+  user-select:none;
+}
+.icon-btn:hover{transform:translateY(-2px);border-color:var(--line-2);color:var(--neon);box-shadow:0 5px 0 -1px #000, 0 0 18px rgba(0,255,156,.2), inset 0 1px 0 rgba(0,255,156,.2);}
+.icon-btn:active{transform:translateY(1px);box-shadow:0 1px 0 -1px #000;}
+.profile-chip{
+  display:flex;align-items:center;gap:8px;
+  padding:5px 10px 5px 5px;border-radius:20px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg,#0d1917,#060d0c);
+  cursor:pointer;
+  box-shadow:0 3px 0 -1px #000, inset 0 1px 0 rgba(0,255,156,.1);
+  transition:transform .15s, border-color .15s, box-shadow .15s;
+}
+.profile-chip:hover{transform:translateY(-2px);border-color:var(--line-2);box-shadow:0 5px 0 -1px #000, 0 0 18px rgba(0,255,156,.16);}
+.avatar{
+  width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;font-size:10px;font-weight:700;
+  background:linear-gradient(150deg, rgba(0,255,156,.22), rgba(0,255,156,.05));
+  border:1px solid var(--line-2);color:var(--neon);
+}
+.profile-meta{display:flex;flex-direction:column;line-height:1.15;}
+.profile-meta b{font-size:10px;letter-spacing:.1em;color:#dff8ef;}
+.profile-meta span{font-size:8.5px;letter-spacing:.14em;color:var(--muted-2);}
+
+/* ============================================================
+   Main nav
+   ============================================================ */
+.mainnav{
+  position:relative;z-index:30;
+  display:flex;gap:6px;overflow-x:auto;
+  padding:9px 16px;
+  border-bottom:1px solid var(--line);
+  background:rgba(4,9,10,.9);
+  backdrop-filter:blur(10px);
+  scrollbar-width:none;
+}
+.mainnav::-webkit-scrollbar{display:none;}
+.navtab{
+  flex:0 0 auto;
+  padding:7px 13px;border-radius:7px;cursor:pointer;
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);
+  border:1px solid transparent;
+  background:transparent;
+  transition:all .18s ease;
+  white-space:nowrap;user-select:none;
+}
+.navtab:hover{color:var(--neon);border-color:var(--line);background:rgba(0,255,156,.05);}
+.navtab.active{
+  color:#03110c;font-weight:700;
+  background:linear-gradient(180deg, #00ff9c, #00c97b);
+  border-color:#00ff9c;
+  box-shadow:0 0 18px rgba(0,255,156,.4), inset 0 1px 0 rgba(255,255,255,.4);
+}
+
+/* ============================================================
+   Shell / layout
+   ============================================================ */
+.shell{
+  position:relative;z-index:2;
+  display:grid;grid-template-columns:252px minmax(0,1fr);
+  gap:16px;
+  padding:16px;
+  max-width:1780px;margin:0 auto;align-items:start;
+}
+#viewRoot{min-width:0;}
+.switch-anim{animation:switchIn .38s cubic-bezier(.2,.8,.25,1);}
+@keyframes switchIn{
+  0%{opacity:0;transform:translateY(10px) scale(.995);filter:blur(3px);}
+  100%{opacity:1;transform:none;filter:none;}
+}
+
+/* ============================================================
+   Panels
+   ============================================================ */
+.panel{
+  position:relative;
+  background:linear-gradient(160deg, var(--panel-a), var(--panel-b));
+  border:1px solid var(--line);
+  border-radius:11px;
+  box-shadow:var(--shadow-deep), inset 0 1px 0 rgba(255,255,255,.028);
+  overflow:hidden;
+}
+.panel::before{
+  content:'';position:absolute;top:0;left:12%;right:12%;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(0,255,156,.6), transparent);
+  opacity:.75;pointer-events:none;
+}
+.panel-head{
+  display:flex;align-items:center;gap:9px;
+  padding:10px 13px;
+  border-bottom:1px solid var(--line);
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--neon);white-space:nowrap;
+}
+.panel-head .ph-line{flex:1 1 auto;height:1px;background:linear-gradient(90deg,var(--line),transparent);min-width:12px;}
+.panel-head .ph-meta{font-size:9px;letter-spacing:.14em;color:var(--muted-2);}
+.panel-body{padding:13px;}
+.panel-foot{
+  padding:9px 13px;border-top:1px solid var(--line);
+  font-size:9.5px;letter-spacing:.1em;color:var(--muted-2);line-height:1.5;
+}
+
+/* ============================================================
+   Sidebar — connected devices
+   ============================================================ */
+.sidebar{
+  position:sticky;top:74px;
+  display:flex;flex-direction:column;gap:10px;min-width:0;
+}
+.side-head{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:9.5px;letter-spacing:.2em;color:var(--muted);padding:0 3px;
+}
+.side-head .count{
+  color:var(--neon);border:1px solid var(--line);border-radius:20px;
+  padding:1px 8px;font-size:9px;background:rgba(0,255,156,.05);
+}
+.dev-card{
+  position:relative;
+  display:block;width:100%;text-align:left;cursor:pointer;
+  padding:10px 11px;margin-bottom:8px;
+  border-radius:9px;
+  border:1px solid var(--line);
+  background:linear-gradient(160deg, rgba(11,20,19,.9), rgba(5,10,10,.95));
+  box-shadow:0 4px 0 -1px rgba(0,0,0,.85), 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(0,255,156,.07);
+  transition:transform .18s ease, border-color .18s, box-shadow .18s, background .18s;
+  overflow:hidden;
+}
+.dev-card::after{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--neon);opacity:0;transition:opacity .2s;
+}
+.dev-card:hover{
+  transform:translateY(-2px);
+  border-color:var(--line-2);
+  box-shadow:0 6px 0 -1px rgba(0,0,0,.85), 0 10px 24px rgba(0,255,156,.1), inset 0 1px 0 rgba(0,255,156,.16);
+}
+.dev-card.active{
+  border-color:rgba(0,255,156,.65);
+  background:linear-gradient(160deg, rgba(0,255,156,.09), rgba(5,12,11,.96));
+  box-shadow:0 0 0 1px rgba(0,255,156,.18), 0 0 26px rgba(0,255,156,.2), 0 6px 0 -1px rgba(0,0,0,.85), inset 0 1px 0 rgba(0,255,156,.2);
+}
+.dev-card.active::after{opacity:1;box-shadow:0 0 12px var(--neon);}
+.dc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dc-name{font-size:10.5px;letter-spacing:.11em;color:#e2fbf2;font-weight:700;}
+.dc-status{font-size:9px;letter-spacing:.14em;margin-top:3px;}
+.dc-status.ok{color:var(--neon);}
+.dc-status.bad{color:var(--red);}
+.dc-meta{font-size:9px;letter-spacing:.08em;color:var(--muted-2);margin-top:5px;}
+.dc-bar{
+  margin-top:8px;height:4px;border-radius:3px;background:rgba(0,255,156,.09);overflow:hidden;
+}
+.dc-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#00c97b,#00ff9c);box-shadow:0 0 8px rgba(0,255,156,.6);}
+.dc-bar.low i{background:linear-gradient(90deg,#c98b00,#ffc247);box-shadow:0 0 8px rgba(255,194,71,.5);}
+.dc-bar.off i{background:linear-gradient(90deg,#4a5a57,#66736f);box-shadow:none;}
+
+.add-device{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:11px;cursor:pointer;
+  border-radius:9px;border:1px dashed rgba(0,255,156,.4);
+  background:rgba(0,255,156,.035);
+  color:var(--neon);font-size:10px;letter-spacing:.18em;
+  transition:all .18s ease;user-select:none;
+}
+.add-device:hover{background:rgba(0,255,156,.1);border-color:var(--neon);box-shadow:0 0 20px rgba(0,255,156,.18);transform:translateY(-1px);}
+.add-device:active{transform:translateY(1px);}
+
+.side-note{
+  padding:10px 11px;border-radius:9px;
+  border:1px solid var(--line);
+  background:rgba(0,255,156,.03);
+  font-size:9px;letter-spacing:.1em;color:var(--muted-2);line-height:1.6;
+}
+.side-note b{color:var(--neon);display:block;margin-bottom:4px;letter-spacing:.16em;font-size:9px;}
+
+/* ============================================================
+   Dashboard grid
+   ============================================================ */
+.dash{display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:16px;align-items:start;}
+.dash .col{display:grid;gap:16px;min-width:0;}
+
+/* ---- Status panel ---- */
+.status-panel{display:flex;gap:18px;align-items:center;padding:16px;flex-wrap:wrap;}
+.status-main{flex:1 1 300px;min-width:0;}
+.status-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.dev-name{
+  margin:0;font-size:19px;letter-spacing:.12em;color:#eafff6;font-weight:700;
+  text-shadow:0 0 20px rgba(0,255,156,.35);
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:20px;
+  font-size:9px;letter-spacing:.16em;font-weight:700;
+}
+.badge.ok{color:#03110c;background:linear-gradient(180deg,#00ff9c,#00c97b);box-shadow:0 0 16px rgba(0,255,156,.45);}
+.badge.bad{color:#1a0505;background:linear-gradient(180deg,#ff6b6b,#e03030);box-shadow:0 0 16px rgba(255,77,77,.35);}
+.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px;}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 9px;border-radius:5px;
+  border:1px solid var(--line);
+  background:rgba(0,255,156,.035);
+  font-size:9px;letter-spacing:.12em;color:var(--muted);
+  white-space:nowrap;
+}
+.chip.live{color:var(--neon);border-color:rgba(0,255,156,.4);}
+.dot-mini{width:5px;height:5px;border-radius:50%;background:var(--neon);box-shadow:0 0 7px var(--neon);}
+.stat-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));
+  gap:8px;margin-top:14px;
+}
+.stat{
+  padding:8px 10px;border-radius:7px;
+  border:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(0,255,156,.045), rgba(0,0,0,.25));
+}
+.stat span{display:block;font-size:8.5px;letter-spacing:.18em;color:var(--muted-2);}
+.stat b{display:block;font-size:13px;letter-spacing:.06em;color:#d8fff0;margin-top:3px;font-weight:600;}
+
+/* ---- Battery ring ---- */
+.battery-widget{flex:0 0 auto;display:grid;place-items:center;}
+.ring-wrap{position:relative;width:132px;height:132px;}
+.ring{width:100%;height:100%;transform:rotate(-90deg);overflow:visible;}
+.ring-bg{fill:none;stroke:rgba(0,255,156,.1);stroke-width:7;}
+.ring-fg{
+  fill:none;stroke-width:7;stroke-linecap:round;
+  transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);
+  filter:drop-shadow(0 0 7px currentColor);
+}
+.ring-label{
+  position:absolute;inset:0;display:grid;place-content:center;text-align:center;
+}
+.ring-label b{display:block;font-size:24px;color:#eafff6;letter-spacing:.04em;text-shadow:0 0 18px rgba(0,255,156,.5);}
+.ring-label span{display:block;font-size:8px;letter-spacing:.24em;color:var(--muted-2);margin-top:2px;}
+
+/* ============================================================
+   3D service buttons
+   ============================================================ */
+.svc-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px;padding:13px;
+}
+.svc{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+  padding:12px 12px 11px;
+  min-height:92px;
+  border-radius:9px;cursor:pointer;text-align:left;
+  border:1px solid rgba(0,255,156,.22);
+  background:linear-gradient(180deg,#101e1a 0%, #081210 52%, #060d0c 100%);
+  color:var(--text);
+  box-shadow:
+    0 5px 0 -1px #000,
+    0 6px 0 0 rgba(0,255,156,.07),
+    0 12px 22px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(0,255,156,.14);
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.svc:hover{
+  transform:translateY(-3px);
+  border-color:rgba(0,255,156,.62);
+  box-shadow:
+    0 8px 0 -1px #000,
+    0 9px 0 0 rgba(0,255,156,.15),
+    0 16px 30px rgba(0,255,156,.15),
+    inset 0 1px 0 rgba(0,255,156,.3);
+}
+.svc:active{
+  transform:translateY(2px);
+  box-shadow:
+    0 1px 0 -1px #000,
+    0 2px 8px rgba(0,0,0,.8),
+    inset 0 1px 0 rgba(0,255,156,.2);
+}
+.svc-scan{
+  position:absolute;top:0;bottom:0;left:-45%;width:45%;
+  background:linear-gradient(90deg, transparent, rgba(0,255,156,.11), transparent);
+  animation:svcScan 5.4s linear infinite;
+  pointer-events:none;
+}
+@keyframes svcScan{ 0%{left:-45%;} 55%{left:125%;} 100%{left:125%;} }
+.svc:nth-child(3n) .svc-scan{animation-delay:1.1s;}
+.svc:nth-child(3n+1) .svc-scan{animation-delay:2.3s;}
+.svc:nth-child(4n) .svc-scan{animation-delay:3.4s;}
+
+.svc-icon{
+  font-size:20px;line-height:1;color:var(--neon);
+  text-shadow:0 0 12px rgba(0,255,156,.5);
+  transition:transform .2s ease;
+}
+.svc:hover .svc-icon{transform:scale(1.12);}
+.svc-label{
+  font-size:10.5px;letter-spacing:.14em;font-weight:700;color:#e4fff4;margin-top:6px;
+}
+.svc-sub{font-size:8.5px;letter-spacing:.07em;color:var(--muted-2);line-height:1.35;}
+.svc-state{
+  position:absolute;top:9px;right:9px;
+  font-size:7.5px;letter-spacing:.14em;padding:2px 6px;border-radius:20px;
+  border:1px solid var(--line);color:var(--muted-2);background:rgba(0,0,0,.35);
+}
+.svc-state.ready{color:var(--neon);border-color:rgba(0,255,156,.4);background:rgba(0,255,156,.07);}
+.svc-state.warn{color:var(--amber);border-color:rgba(255,194,71,.4);background:rgba(255,194,71,.07);}
+.svc-state.off{color:var(--red);border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.07);}
+
+/* ============================================================
+   Phone preview
+   ============================================================ */
+.phone-stage{
+  display:grid;place-items:center;padding:18px 12px 8px;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 40%, rgba(0,255,156,.09), transparent 70%),
+    repeating-linear-gradient(180deg, rgba(0,255,156,.025) 0 1px, transparent 1px 4px);
+}
+.phone{
+  position:relative;width:196px;height:392px;
+  border-radius:30px;
+  border:2px solid rgba(0,255,156,.32);
+  background:linear-gradient(160deg,#0a1413,#030706);
+  box-shadow:
+    0 0 0 6px rgba(0,0,0,.65),
+    0 26px 50px rgba(0,0,0,.75),
+    0 0 42px rgba(0,255,156,.14),
+    inset 0 0 30px rgba(0,255,156,.06);
+  padding:9px;
+  animation:phoneFloat 6s ease-in-out infinite;
+}
+@keyframes phoneFloat{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+.phone-speaker{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  width:56px;height:5px;border-radius:4px;background:#050a09;
+  border:1px solid rgba(0,255,156,.2);z-index:3;
+}
+.phone-screen{
+  position:relative;width:100%;height:100%;border-radius:22px;overflow:hidden;
+  background:linear-gradient(170deg,#04100d,#020605 60%,#04100d);
+  border:1px solid rgba(0,255,156,.18);
+  display:flex;flex-direction:column;
+}
+.phone-screen::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg, rgba(0,255,156,.05) 0 1px, transparent 1px 3px);
+  opacity:.5;
+}
+.ps-statusbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 12px 6px;font-size:8px;letter-spacing:.14em;color:var(--neon);
+  position:relative;z-index:2;
+}
+.ps-body{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;position:relative;z-index:2;}
+.ps-name{font-size:13px;letter-spacing:.2em;color:#eafff6;font-weight:700;}
+.ps-state{font-size:9px;letter-spacing:.2em;color:var(--neon);}
+.ps-batt{font-size:9px;letter-spacing:.14em;color:var(--muted);}
+.ps-stream{
+  position:relative;z-index:2;
+  margin:0 11px 12px;padding:9px;border-radius:8px;text-align:center;
+  border:1px dashed rgba(255,194,71,.4);
+  background:rgba(255,194,71,.05);
+}
+.ps-stream b{display:block;font-size:8.5px;letter-spacing:.18em;color:var(--amber);}
+.ps-stream span{display:block;font-size:7.5px;letter-spacing:.1em;color:var(--muted-2);margin-top:4px;line-height:1.5;}
+.ps-stream.live{
+  border:1px solid rgba(0,255,156,.5);
+  background:rgba(0,255,156,.08);
+  animation:livePulse 2.2s ease-in-out infinite;
+}
+.ps-stream.live b{color:var(--neon);}
+.ps-stream.live span{color:var(--neon);opacity:.75;}
+@keyframes livePulse{ 0%,100%{box-shadow:0 0 0 rgba(0,255,156,0);} 50%{box-shadow:0 0 22px rgba(0,255,156,.28);} }
+
+/* ============================================================
+   Permission matrix
+   ============================================================ */
+.perm-list{display:flex;flex-direction:column;gap:0;}
+.perm-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:9px 13px;border-bottom:1px solid rgba(0,255,156,.07);
+  font-size:10px;letter-spacing:.1em;
+}
+.perm-row:last-child{border-bottom:none;}
+.perm-row .pr-name{color:var(--muted);display:flex;align-items:center;gap:8px;}
+.perm-row .pr-name i{font-style:normal;color:var(--muted-2);font-size:11px;}
+.pill{
+  font-size:8.5px;letter-spacing:.16em;font-weight:700;
+  padding:3px 9px;border-radius:20px;white-space:nowrap;
+}
+.pill.ok{color:#03110c;background:linear-gradient(180deg,#00ff9c,#00c97b);}
+.pill.warn{color:#1b1300;background:linear-gradient(180deg,#ffd166,#e5a900);}
+.pill.bad{color:#1a0505;background:linear-gradient(180deg,#ff7a7a,#e03a3a);}
+.pill.idle{color:var(--muted);border:1px solid var(--line);background:rgba(0,255,156,.04);}
+
+/* ============================================================
+   Activity log
+   ============================================================ */
+.log-list{max-height:330px;overflow-y:auto;}
+.log-item{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:9px 13px;border-bottom:1px solid rgba(0,255,156,.06);
+  font-size:10px;letter-spacing:.05em;
+  animation:logIn .35s ease backwards;
+}
+@keyframes logIn{ from{opacity:0;transform:translateX(-8px);} to{opacity:1;transform:none;} }
+.log-item:last-child{border-bottom:none;}
+.log-time{color:var(--muted-2);flex:0 0 auto;font-size:9.5px;letter-spacing:.08em;}
+.log-txt{color:var(--muted);flex:1 1 auto;min-width:0;}
+.log-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;margin-top:5px;}
+.log-dot.ok{background:var(--neon);box-shadow:0 0 8px var(--neon);}
+.log-dot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+.log-dot.bad{background:var(--red);box-shadow:0 0 8px var(--red);}
+
+/* ============================================================
+   Terminal dock
+   ============================================================ */
+.terminal-dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:45;
+  border-top:1px solid var(--line-2);
+  background:linear-gradient(180deg, rgba(5,11,11,.97), rgba(2,5,5,.99));
+  backdrop-filter:blur(12px);
+  box-shadow:0 -14px 40px rgba(0,0,0,.7);
+  transition:transform .32s cubic-bezier(.2,.8,.25,1);
+}
+.terminal-dock.collapsed{transform:translateY(calc(100% - 38px));}
+.term-head{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;cursor:pointer;
+  font-size:9.5px;letter-spacing:.2em;color:var(--neon);
+  border-bottom:1px solid rgba(0,255,156,.1);
+  user-select:none;
+}
+.term-head .th-dots{display:flex;gap:5px;}
+.term-head .th-dots i{width:8px;height:8px;border-radius:50%;display:block;background:rgba(0,255,156,.2);}
+.term-head .th-dots i:first-child{background:rgba(255,77,77,.5);}
+.term-head .th-dots i:nth-child(2){background:rgba(255,194,71,.5);}
+.term-head .th-dots i:nth-child(3){background:rgba(0,255,156,.5);}
+.term-head .th-spacer{flex:1;}
+.term-toggle{
+  border:1px solid var(--line);background:rgba(0,255,156,.05);
+  color:var(--neon);border-radius:5px;padding:2px 9px;font-size:10px;cursor:pointer;
+  transition:transform .3s ease, background .2s;
+}
+.terminal-dock.collapsed .term-toggle{transform:rotate(180deg);}
+.term-body{
+  height:206px;overflow-y:auto;padding:11px 14px 16px;
+  font-size:11px;line-height:1.7;letter-spacing:.03em;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,255,156,.02) 0 1px, transparent 1px 3px);
+}
+@media (max-width:760px){ .term-body{height:168px;font-size:10px;} }
+.term-line{white-space:pre-wrap;word-break:break-word;animation:termIn .22s ease backwards;}
+@keyframes termIn{ from{opacity:0;} to{opacity:1;} }
+.t-cmd{color:var(--neon);}
+.t-req{color:var(--cyan);}
+.t-ok{color:#7dffc8;}
+.t-sys{color:#5f8f80;}
+.t-ready{color:var(--neon);}
+.t-warn{color:var(--amber);}
+.t-err{color:var(--red);}
+.term-cursor{
+  display:inline-block;width:8px;height:13px;background:var(--neon);
+  vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite;
+  box-shadow:0 0 10px var(--neon);
+}
+@keyframes blink{ 0%,49%{opacity:1;} 50%,100%{opacity:0;} }
+
+/* ============================================================
+   Generic page elements
+   ============================================================ */
+.page-head{
+  display:flex;align-items:flex-end;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin-bottom:14px;
+}
+.page-title{
+  margin:0;font-size:17px;letter-spacing:.16em;color:#eafff6;font-weight:700;
+  text-shadow:0 0 18px rgba(0,255,156,.3);
+}
+.page-sub{font-size:9.5px;letter-spacing:.14em;color:var(--muted-2);margin-top:5px;}
+
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start;}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.stack{display:grid;gap:16px;}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:10px 18px;border-radius:8px;cursor:pointer;
+  font-size:10px;letter-spacing:.18em;font-weight:700;text-transform:uppercase;
+  border:1px solid var(--line-2);
+  background:linear-gradient(180deg,#12neu 0%, #0c1a17 0%, #060f0d 100%);
+  color:var(--neon);
+  box-shadow:0 4px 0 -1px #000, 0 8px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(0,255,156,.14);
+  transition:transform .15s, box-shadow .15s, background .2s, color .2s, border-color .2s;
+  user-select:none;
+}
+.btn:hover{transform:translateY(-2px);border-color:var(--neon);box-shadow:0 6px 0 -1px #000, 0 0 24px rgba(0,255,156,.25), inset 0 1px 0 rgba(0,255,156,.28);}
+.btn:active{transform:translateY(1px);box-shadow:0 1px 0 -1px #000, inset 0 1px 0 rgba(0,255,156,.2);}
+.btn.primary{background:linear-gradient(180deg,#00ff9c,#00c07a);color:#02120c;border-color:#00ff9c;box-shadow:0 4px 0 -1px #005f3d, 0 8px 22px rgba(0,255,156,.28);}
+.btn.primary:hover{box-shadow:0 6px 0 -1px #005f3d, 0 0 30px rgba(0,255,156,.5);}
+.btn.danger{border-color:rgba(255,77,77,.5);color:var(--red);background:linear-gradient(180deg,#1c0d0d,#0b0505);box-shadow:0 4px 0 -1px #000, 0 8px 18px rgba(0,0,0,.5);}
+.btn.danger:hover{border-color:var(--red);box-shadow:0 6px 0 -1px #000, 0 0 24px rgba(255,77,77,.3);}
+.btn.ghost{border-color:var(--line);color:var(--muted);background:linear-gradient(180deg,#0b1413,#060c0b);}
+.btn.ghost:hover{color:var(--neon);border-color:var(--line-2);}
+.btn.sm{padding:7px 13px;font-size:9px;}
+.btn[disabled]{opacity:.4;pointer-events:none;}
+
+.tabs{display:flex;gap:7px;flex-wrap:wrap;}
+.tab{
+  padding:7px 14px;border-radius:7px;cursor:pointer;
+  font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  border:1px solid var(--line);background:rgba(0,255,156,.03);color:var(--muted);
+  transition:all .18s ease;user-select:none;
+}
+.tab:hover{color:var(--neon);border-color:var(--line-2);}
+.tab.active{color:#03110c;background:linear-gradient(180deg,#00ff9c,#00c97b);border-color:#00ff9c;font-weight:700;box-shadow:0 0 18px rgba(0,255,156,.35);}
+
+.notice{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:11px 13px;border-radius:8px;
+  font-size:10px;letter-spacing:.05em;line-height:1.6;
+  border:1px solid var(--line);background:rgba(0,255,156,.035);color:var(--muted);
+}
+.notice b{color:var(--neon);letter-spacing:.14em;display:block;margin-bottom:3px;font-size:9.5px;}
+.notice.warn{border-color:rgba(255,194,71,.35);background:rgba(255,194,71,.05);}
+.notice.warn b{color:var(--amber);}
+.notice.bad{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.05);}
+.notice.bad b{color:var(--red);}
+.notice-ico{font-size:14px;line-height:1;flex:0 0 auto;}
+
+/* Tables */
+.table-wrap{overflow-x:auto;}
+table.cyber{width:100%;border-collapse:collapse;font-size:10.5px;letter-spacing:.06em;min-width:520px;}
+table.cyber th{
+  text-align:left;padding:9px 12px;
+  font-size:8.5px;letter-spacing:.2em;color:var(--muted-2);text-transform:uppercase;
+  border-bottom:1px solid var(--line);font-weight:600;background:rgba(0,255,156,.03);
+  white-space:nowrap;
+}
+table.cyber td{padding:10px 12px;border-bottom:1px solid rgba(0,255,156,.06);color:var(--muted);white-space:nowrap;}
+table.cyber tr:hover td{background:rgba(0,255,156,.035);color:var(--text);}
+table.cyber tr:last-child td{border-bottom:none;}
+.t-ok-text{color:var(--neon);}
+.t-warn-text{color:var(--amber);}
+.t-bad-text{color:var(--red);}
+.t-cy{color:var(--cyan);}
+
+/* Map */
+.map-stage{
+  position:relative;height:380px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0,255,156,.1), transparent 62%),
+    linear-gradient(rgba(0,255,156,.07) 1px, transparent 1px) 0 0/38px 38px,
+    linear-gradient(90deg, rgba(0,255,156,.07) 1px, transparent 1px) 0 0/38px 38px,
+    linear-gradient(170deg,#04100d,#020605);
+}
+.map-stage::before{
+  content:'';position:absolute;inset:0;
+  background:conic-gradient(from 0deg, rgba(0,255,156,.22), transparent 22%);
+  animation:radar 4.5s linear infinite;
+  transform-origin:50% 50%;
+  -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 62%);
+  mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 62%);
+}
+@keyframes radar{ to{ transform:rotate(360deg); } }
+.map-cross{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:150px;height:150px;
+}
+.map-cross::before,.map-cross::after{
+  content:'';position:absolute;background:rgba(0,255,156,.4);
+}
+.map-cross::before{left:50%;top:0;bottom:0;width:1px;}
+.map-cross::after{top:50%;left:0;right:0;height:1px;}
+.map-center{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;
+  border:2px solid var(--neon);background:rgba(0,255,156,.22);
+  box-shadow:0 0 22px rgba(0,255,156,.7);
+}
+.map-center::after{
+  content:'';position:absolute;inset:-10px;border-radius:50%;
+  border:1px solid rgba(0,255,156,.5);animation:pulseRing 2.4s ease-out infinite;
+}
+.map-corner{
+  position:absolute;font-size:8.5px;letter-spacing:.16em;color:var(--muted-2);
+}
+.map-corner.tl{top:11px;left:13px;}
+.map-corner.tr{top:11px;right:13px;text-align:right;}
+.map-corner.bl{bottom:11px;left:13px;}
+.map-corner.br{bottom:11px;right:13px;text-align:right;}
+.map-overlay-msg{
+  position:absolute;left:50%;bottom:56px;transform:translateX(-50%);
+  padding:8px 16px;border-radius:20px;white-space:nowrap;
+  border:1px solid rgba(255,194,71,.4);background:rgba(6,12,11,.9);
+  font-size:9px;letter-spacing:.16em;color:var(--amber);
+}
+
+/* Gallery */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px;}
+.media-tile{
+  position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;cursor:pointer;
+  border:1px solid var(--line);
+  background:linear-gradient(150deg,#0b1a17,#050c0b);
+  display:grid;place-items:center;
+  transition:transform .18s ease, border-color .18s, box-shadow .18s;
+}
+.media-tile:hover{transform:translateY(-3px);border-color:var(--line-2);box-shadow:0 10px 24px rgba(0,255,156,.16);}
+.media-tile::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(45deg, rgba(0,255,156,.05) 0 6px, transparent 6px 12px);
+  opacity:.6;
+}
+.media-tile span{position:relative;font-size:22px;color:rgba(0,255,156,.5);}
+.media-tile small{
+  position:absolute;bottom:5px;left:6px;font-size:7.5px;letter-spacing:.12em;color:var(--muted-2);
+}
+.media-tile .badge-file{
+  position:absolute;top:5px;right:5px;font-size:7px;letter-spacing:.1em;
+  padding:2px 5px;border-radius:3px;background:rgba(0,0,0,.55);color:var(--muted-2);
+  border:1px solid var(--line);
+}
+
+/* App cards */
+.app-card{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;border-radius:9px;
+  border:1px solid var(--line);
+  background:linear-gradient(160deg, rgba(11,20,19,.85), rgba(5,10,10,.92));
+  box-shadow:0 4px 0 -1px rgba(0,0,0,.8), 0 8px 18px rgba(0,0,0,.4);
+  transition:transform .18s, border-color .18s, box-shadow .18s;
+}
+.app-card:hover{transform:translateY(-2px);border-color:var(--line-2);box-shadow:0 6px 0 -1px rgba(0,0,0,.8), 0 0 22px rgba(0,255,156,.13);}
+.app-ico{
+  width:38px;height:38px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;
+  border:1px solid var(--line);background:rgba(0,255,156,.06);
+  font-size:16px;color:var(--neon);
+}
+.app-meta{flex:1 1 auto;min-width:0;}
+.app-meta b{display:block;font-size:11px;letter-spacing:.1em;color:#e0fbf2;}
+.app-meta span{display:block;font-size:8.5px;letter-spacing:.12em;color:var(--muted-2);margin-top:3px;}
+
+/* Security center */
+.sec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+.sec-card{
+  padding:14px;border-radius:9px;
+  border:1px solid var(--line);
+  background:linear-gradient(160deg, rgba(0,255,156,.05), rgba(4,9,9,.92));
+  box-shadow:0 5px 0 -1px rgba(0,0,0,.8), 0 10px 22px rgba(0,0,0,.4);
+}
+.sec-card span{display:block;font-size:8.5px;letter-spacing:.2em;color:var(--muted-2);}
+.sec-card b{display:block;font-size:14px;letter-spacing:.12em;color:var(--neon);margin-top:6px;text-shadow:0 0 14px rgba(0,255,156,.4);}
+.sec-card i{display:block;font-style:normal;font-size:8.5px;letter-spacing:.1em;color:var(--muted-2);margin-top:6px;}
+
+/* Modal */
+.modal-backdrop{
+  position:fixed;inset:0;z-index:90;
+  display:grid;place-items:center;padding:18px;
+  background:rgba(1,3,3,.82);
+  backdrop-filter:blur(6px);
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{
+  width:min(460px,100%);
+  border-radius:12px;overflow:hidden;
+  border:1px solid var(--line-2);
+  background:linear-gradient(160deg,#0c1716,#050a0a);
+  box-shadow:0 0 0 1px rgba(0,255,156,.1), 0 30px 70px rgba(0,0,0,.8), 0 0 60px rgba(0,255,156,.1);
+  animation:modalIn .28s cubic-bezier(.2,.8,.25,1);
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.97);}to{opacity:1;transform:none;}}
+.modal-head{
+  padding:13px 16px;border-bottom:1px solid var(--line);
+  font-size:10.5px;letter-spacing:.2em;color:var(--amber);
+  display:flex;align-items:center;gap:9px;
+}
+.modal-body{padding:16px;font-size:11px;line-height:1.7;color:var(--muted);letter-spacing:.04em;}
+.modal-body b{color:#e5fff5;}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;padding:13px 16px;border-top:1px solid var(--line);flex-wrap:wrap;}
+
+/* Toast */
+.toast-wrap{position:fixed;right:16px;bottom:64px;z-index:95;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;}
+.toast{
+  padding:10px 14px;border-radius:8px;max-width:320px;
+  font-size:10px;letter-spacing:.1em;
+  border:1px solid var(--line-2);background:rgba(6,13,12,.97);color:var(--neon);
+  box-shadow:0 12px 30px rgba(0,0,0,.65), 0 0 24px rgba(0,255,156,.16);
+  animation:toastIn .3s cubic-bezier(.2,.8,.25,1);
+}
+.toast.bad{border-color:rgba(255,77,77,.5);color:var(--red);box-shadow:0 12px 30px rgba(0,0,0,.65), 0 0 24px rgba(255,77,77,.2);}
+.toast.warn{border-color:rgba(255,194,71,.5);color:var(--amber);}
+@keyframes toastIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:none;}}
+
+/* Switch */
+.switch{
+  position:relative;width:42px;height:22px;border-radius:20px;cursor:pointer;flex:0 0 auto;
+  border:1px solid var(--line);background:rgba(0,0,0,.5);
+  transition:background .2s, border-color .2s;
+}
+.switch::after{
+  content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+  background:#3d4f4a;transition:transform .22s cubic-bezier(.2,.8,.25,1), background .2s;
+}
+.switch.on{background:rgba(0,255,156,.18);border-color:rgba(0,255,156,.55);}
+.switch.on::after{transform:translateX(20px);background:var(--neon);box-shadow:0 0 12px var(--neon);}
+
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 13px;border-bottom:1px solid rgba(0,255,156,.07);
+}
+.setting-row:last-child{border-bottom:none;}
+.setting-row .sr-txt b{display:block;font-size:10.5px;letter-spacing:.12em;color:#dff8ef;}
+.setting-row .sr-txt span{display:block;font-size:9px;letter-spacing:.08em;color:var(--muted-2);margin-top:3px;}
+
+/* Streaming stage */
+.stream-stage{
+  position:relative;border-radius:10px;overflow:hidden;height:330px;
+  border:1px solid var(--line);
+  background:linear-gradient(170deg,#04100d,#020605);
+  display:grid;place-items:center;
+}
+.stream-stage::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(180deg, rgba(0,255,156,.05) 0 1px, transparent 1px 3px);
+  pointer-events:none;
+}
+.stream-noise{
+  position:absolute;inset:0;opacity:.12;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(0,255,156,.5) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgba(0,255,156,.4) 0 1px, transparent 1px),
+    radial-gradient(circle at 45% 80%, rgba(37,224,255,.4) 0 1px, transparent 1px);
+  background-size:60px 60px, 90px 90px, 45px 45px;
+  animation:noiseShift .5s steps(3) infinite;
+}
+@keyframes noiseShift{ 0%{background-position:0 0,0 0,0 0;} 100%{background-position:60px 30px,-40px 60px,20px -30px;} }
+.stream-msg{position:relative;text-align:center;padding:20px;z-index:2;}
+.stream-msg b{display:block;font-size:13px;letter-spacing:.24em;color:var(--amber);}
+.stream-msg span{display:block;font-size:9.5px;letter-spacing:.14em;color:var(--muted-2);margin-top:9px;line-height:1.7;}
+.stream-msg.live b{color:var(--neon);text-shadow:0 0 20px rgba(0,255,156,.6);}
+
+/* Scan overlay for device switching */
+.scan-flash{
+  position:fixed;inset:0;z-index:60;pointer-events:none;
+  background:linear-gradient(180deg, transparent, rgba(0,255,156,.18), transparent);
+  height:220px;animation:scanFlash .6s ease-out forwards;
+}
+@keyframes scanFlash{ 0%{transform:translateY(-240px);opacity:0;} 40%{opacity:1;} 100%{transform:translateY(110vh);opacity:0;} }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width:1240px){
+  .dash{grid-template-columns:minmax(0,1fr);}
+  .dash .col:last-child{grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+}
+@media (max-width:1080px){
+  .shell{grid-template-columns:minmax(0,1fr);padding:13px;gap:13px;}
+  .sidebar{position:static;}
+  #deviceList{display:flex;gap:9px;overflow-x:auto;padding-bottom:5px;margin-bottom:0;}
+  #deviceList::-webkit-scrollbar{height:5px;}
+  .dev-card{min-width:214px;flex:0 0 auto;margin-bottom:0;}
+  .side-note{display:none;}
+  .sidebar{flex-direction:column;}
+}
+@media (max-width:860px){
+  .chan{display:none;}
+  .brand-sub{display:none;}
+}
+@media (max-width:700px){
+  body{font-size:12.5px;}
+  .topbar{padding:7px 11px;gap:9px;min-height:54px;}
+  .brand h1{font-size:12.5px;letter-spacing:.14em;}
+  .brand-mark{width:29px;height:29px;font-size:14px;}
+  .profile-meta{display:none;}
+  .profile-chip{padding:4px;}
+  .mainnav{padding:8px 11px;}
+  .shell{padding:11px;gap:11px;}
+  .svc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;}
+  .svc{min-height:88px;padding:10px;}
+  .svc-icon{font-size:17px;}
+  .svc-label{font-size:9.5px;letter-spacing:.1em;}
+  .svc-sub{font-size:8px;}
+  .svc-state{top:7px;right:7px;font-size:7px;padding:2px 5px;}
+  .status-panel{padding:13px;gap:13px;}
+  .dev-name{font-size:15px;}
+  .ring-wrap{width:108px;height:108px;}
+  .ring-label b{font-size:19px;}
+  .phone{width:172px;height:344px;}
+  .map-stage{height:280px;}
+  .toast-wrap{left:11px;right:11px;align-items:stretch;bottom:56px;}
+  .toast{max-width:none;}
+}
+@media (max-width:380px){
+  .svc-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .svc-sub{display:none;}
+  .svc{min-height:74px;}
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+  #matrix{display:none;}
+  .cyber-grid{animation:none;}
+  .scanbeam{display:none;}
+}
+
+/* ============================================================
+   FIREBASE AUTH GATE — Step 1
+   ============================================================ */
+body.firebase-wait > *:not(#firebaseAuthGate){visibility:hidden !important;}
+#firebaseAuthGate{
+  position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:rgba(2,5,7,.97); backdrop-filter:blur(12px);
+  color:var(--text);
+}
+.firebase-auth-card{
+  width:min(460px,100%); padding:24px; border:1px solid var(--line-2);
+  border-radius:18px; background:linear-gradient(145deg,rgba(10,22,21,.98),rgba(3,9,10,.98));
+  box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 35px rgba(0,255,156,.08);
+}
+.firebase-auth-title{font-size:22px;font-weight:800;letter-spacing:.08em;color:#eafff6;margin-bottom:6px;}
+.firebase-auth-sub{font-size:11px;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+.firebase-auth-label{display:block;font-size:10px;color:var(--neon);letter-spacing:.12em;margin:12px 0 6px;}
+.firebase-auth-input{
+  width:100%;padding:12px 13px;border:1px solid var(--line-2);border-radius:10px;
+  background:#020607;color:#eafff6;outline:none;font-family:var(--mono);
+}
+.firebase-auth-input:focus{border-color:var(--neon);box-shadow:0 0 0 3px rgba(0,255,156,.08);}
+.firebase-auth-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px;}
+.firebase-auth-btn{
+  border:1px solid var(--line-2);border-radius:10px;padding:11px 14px;cursor:pointer;
+  background:rgba(0,255,156,.08);color:#dfffee;font-family:var(--mono);font-weight:700;
+}
+.firebase-auth-btn.primary{background:rgba(0,255,156,.18);border-color:rgba(0,255,156,.5);color:#eafff6;}
+.firebase-auth-btn.danger{background:rgba(255,77,77,.08);border-color:rgba(255,77,77,.35);}
+.firebase-auth-btn:disabled{opacity:.45;cursor:not-allowed;}
+.firebase-auth-msg{min-height:18px;margin-top:12px;font-size:11px;line-height:1.5;color:var(--muted);}
+.firebase-auth-msg.ok{color:var(--neon);}
+.firebase-auth-msg.err{color:#ff8b8b;}
+.firebase-config-box{display:none;}
+.firebase-setup-note{font-size:10px;color:var(--muted);line-height:1.6;margin:8px 0 0;}
+.firebase-user-badge{position:fixed;right:12px;top:12px;z-index:5000;font-size:10px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:rgba(3,9,10,.86);color:var(--muted);pointer-events:none;}
+.firebase-user-badge b{color:var(--neon);}
+</style>
+
+<!-- Firebase Authentication SDK -->
+<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="firebase-wait">
+<!-- Firebase Authentication Gate -->
+<div id="firebaseAuthGate" aria-live="polite">
+  <div class="firebase-auth-card">
+    <div class="firebase-auth-title">CYBER//CONTROL AUTH</div>
+    <div class="firebase-auth-sub">Controller authentication is required before the control center can be used.</div>
+
+    <div id="firebaseSetupPanel">
+      <label class="firebase-auth-label">FIREBASE CONFIG</label>
+      <textarea id="firebaseConfigInput" class="firebase-auth-input" rows="7" spellcheck="false" placeholder="Paste the Firebase config copied from Project settings here"></textarea>
+      <div class="firebase-setup-note">Paste the config snippet from Firebase Console. Do not send it to anyone in chat. This browser stores the config locally for this site.</div>
+      <div class="firebase-auth-actions">
+        <button class="firebase-auth-btn primary" id="firebaseSaveConfig">INITIALIZE FIREBASE</button>
+      </div>
+    </div>
+
+    <div id="firebaseLoginPanel" hidden>
+      <label class="firebase-auth-label">EMAIL</label>
+      <input id="firebaseEmail" class="firebase-auth-input" type="email" autocomplete="email" placeholder="controller@example.com">
+      <label class="firebase-auth-label">PASSWORD</label>
+      <input id="firebasePassword" class="firebase-auth-input" type="password" autocomplete="current-password" placeholder="Password">
+      <div class="firebase-auth-actions">
+        <button class="firebase-auth-btn primary" id="firebaseLoginBtn">LOGIN</button>
+        <button class="firebase-auth-btn" id="firebaseSignupBtn">CREATE ACCOUNT</button>
+        <button class="firebase-auth-btn" id="firebaseResetBtn">RESET PASSWORD</button>
+      </div>
+      <div class="firebase-auth-actions">
+        <button class="firebase-auth-btn danger" id="firebaseClearConfigBtn">CLEAR LOCAL FIREBASE CONFIG</button>
+      </div>
+    </div>
+
+    <div id="firebaseAuthMsg" class="firebase-auth-msg">Initializing…</div>
+  </div>
+</div>
+<div id="firebaseUserBadge" class="firebase-user-badge" hidden></div>
+
+
+<!-- Background layers -->
+<canvas id="matrix" aria-hidden="true"></canvas>
+<div class="cyber-grid" aria-hidden="true"></div>
+<div class="scanbeam" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<!-- ============================ HEADER ============================ -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">◈</div>
+    <div>
+      <h1>CYBER<span>//</span>CONTROL</h1>
+      <div class="brand-sub">DEVICE CONTROL CENTER · v2.4.1</div>
+    </div>
+  </div>
+
+  <div class="chan" title="Secure channel status">
+    <span class="pulse-dot"></span>
+    <span>SECURE CHANNEL ACTIVE</span>
+    <span class="chan-bars"><i></i><i></i><i></i><i></i></span>
+  </div>
+
+  <div class="top-spacer"></div>
+
+  <div class="top-actions">
+    <button class="profile-chip" data-action="nav" data-view="settings" title="Controller profile">
+      <span class="avatar">OP</span>
+      <span class="profile-meta">
+        <b>OPERATOR-01</b>
+        <span>ROOT ACCESS</span>
+      </span>
+    </button>
+    <button class="icon-btn" data-action="nav" data-view="settings" title="Settings" aria-label="Settings">⚙</button>
+    <button class="icon-btn" data-action="logout" title="Logout" aria-label="Logout">⏻</button>
+  </div>
+</header>
+
+<!-- ============================ MAIN NAV ============================ -->
+<nav class="mainnav" id="mainNav" aria-label="Main navigation"></nav>
+
+<!-- ============================ SHELL ============================ -->
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="side-head">
+      <span>CONNECTED DEVICES</span>
+      <span class="count" id="devCount">0</span>
+    </div>
+    <div id="deviceList"></div>
+    <button class="add-device" data-action="add-device">＋ ADD DEVICE</button>
+    <div class="side-note">
+      <b>◈ PAIRING REQUIRED</b>
+      New devices must complete authenticated pairing before any command can be delivered.
+    </div>
+  </aside>
+
+  <main id="viewRoot" aria-live="polite"></main>
+</div>
+
+<!-- ============================ TERMINAL DOCK ============================ -->
+<div class="terminal-dock collapsed" id="termDock">
+  <div class="term-head" data-action="toggle-term">
+    <span class="th-dots"><i></i><i></i><i></i></span>
+    <span>SYSTEM TERMINAL</span>
+    <span class="th-spacer"></span>
+    <span id="termStatus" style="color:var(--muted-2);font-size:9px;letter-spacing:.14em;">IDLE</span>
+    <button class="term-toggle" type="button" aria-label="Toggle terminal">▾</button>
+  </div>
+  <div class="term-body" id="termBody"></div>
+</div>
+
+<!-- ============================ MODAL ============================ -->
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-head" id="modalHead">⚠ CONFIRM ACTION</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<!-- ============================ TOASTS ============================ -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ============================================================================
+   CYBER//CONTROL — front-end prototype
+   ----------------------------------------------------------------------------
+   IMPORTANT / HONESTY NOTES
+   - This file is the WEB UI LAYER ONLY. Every value below is local mock state.
+   - Nothing here controls, accesses, or surveils a real device.
+   - Real features (screen capture, call log, SMS, gallery, location, lock)
+     require the Android companion app to hold the corresponding runtime
+     permission AND an authenticated pairing session. The UI never claims a
+     permission is granted unless the backend reports it as granted.
+   - Real screen streaming must use Android's MediaProjection flow with
+     explicit on-device user consent.
+   - No credentials, tokens, API keys or secrets are stored in this file.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------
+   UTIL
+   --------------------------------------------------------------- */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2, '0');
+const fmtUptime = s => `${pad2(Math.floor(s/3600))}:${pad2(Math.floor(s/60)%60)}:${pad2(Math.floor(s)%60)}`;
+const nowTime = () => new Date().toTimeString().slice(0, 8);
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------------------------------------------------------
+   MOCK DEVICE STATE (prototype only)
+   --------------------------------------------------------------- */
+const DEVICES = {
+  B: {
+    id: 'B',
+    name: 'PHONE B — MAIN',
+    short: 'PHONE B',
+    model: 'Pixel 8 Pro · Android 14',
+    online: true,
+    battery: 78,
+    charging: false,
+    network: 'Wi-Fi',
+    latency: 42,
+    uptime: 4 * 3600 + 28 * 60 + 17,
+    lastSeen: 'Just now',
+    lastSync: '2 seconds ago',
+    pairing: 'VERIFIED',
+    session: 'ENCRYPTED',
+    trust: 'TRUSTED',
+    lastAuth: '22:10:41',
+    streaming: false,
+    perms: {
+      location: 'granted',
+      notifications: 'granted',
+      screen: 'granted',
+      calllog: 'review',
+      contacts: 'granted',
+      gallery: 'granted',
+      sms: 'granted',
+      apps: 'granted',
+      deviceadmin: 'granted'
+    },
+    activity: [
+      ['22:11:04', 'Device heartbeat received', 'ok'],
+      ['22:10:58', 'Battery synchronized', 'ok'],
+      ['22:10:41', 'Secure session verified', 'ok'],
+      ['22:10:15', 'PHONE B connected', 'ok'],
+      ['22:09:52', 'Pairing token rotated', 'ok'],
+      ['22:08:30', 'Screen capture session ended', 'warn']
+    ]
+  },
+  C: {
+    id: 'C',
+    name: 'PHONE C — HOME',
+    short: 'PHONE C',
+    model: 'Galaxy S23 · Android 14',
+    online: true,
+    battery: 51,
+    charging: true,
+    network: 'Wi-Fi',
+    latency: 88,
+    uptime: 12 * 3600 + 6 * 60 + 41,
+    lastSeen: 'Just now',
+    lastSync: '6 seconds ago',
+    pairing: 'VERIFIED',
+    session: 'ENCRYPTED',
+    trust: 'TRUSTED',
+    lastAuth: '21:48:03',
+    streaming: false,
+    perms: {
+      location: 'granted',
+      notifications: 'granted',
+      screen: 'review',
+      calllog: 'granted',
+      contacts: 'review',
+      gallery: 'granted',
+      sms: 'review',
+      apps: 'review',
+      deviceadmin: 'granted'
+    },
+    activity: [
+      ['22:10:47', 'Device heartbeat received', 'ok'],
+      ['22:10:22', 'Charging state changed: CHARGING', 'ok'],
+      ['22:09:14', 'Gallery index synchronized', 'ok'],
+      ['21:58:02', 'Notification listener reconnected', 'warn'],
+      ['21:48:03', 'PHONE C authenticated', 'ok']
+    ]
+  },
+  D: {
+    id: 'D',
+    name: 'PHONE D — TEST',
+    short: 'PHONE D',
+    model: 'Redmi Note 12 · Android 13',
+    online: false,
+    battery: null,
+    charging: false,
+    network: '—',
+    latency: null,
+    uptime: 0,
+    lastSeen: '18 min ago',
+    lastSync: '18 min ago',
+    pairing: 'VERIFIED',
+    session: 'CLOSED',
+    trust: 'TRUSTED',
+    lastAuth: '20:04:12',
+    streaming: false,
+    perms: {
+      location: 'denied',
+      notifications: 'review',
+      screen: 'denied',
+      calllog: 'denied',
+      contacts: 'review',
+      gallery: 'denied',
+      sms: 'denied',
+      apps: 'denied',
+      deviceadmin: 'review'
+    },
+    activity: [
+      ['22:10:41', 'Connection lost — device offline', 'bad'],
+      ['22:07:18', 'Heartbeat timeout (3 missed)', 'warn'],
+      ['21:59:50', 'Last successful command: DEVICE_INFO', 'ok'],
+      ['21:40:07', 'PHONE D authenticated', 'ok']
+    ]
+  }
+};
+
+/* Service modules -------------------------------------------------------- */
+const SERVICES = [
+  { id:'dashboard',  icon:'◈', label:'DASHBOARD',       sub:'System Overview',                view:'dashboard' },
+  { id:'location',   icon:'⌖', label:'LOCATION',        sub:'Live Location',                  view:'location',  perm:'location' },
+  { id:'battery',    icon:'▣', label:'BATTERY',         sub:'Battery Status',                 view:'battery' },
+  { id:'calls',      icon:'☎', label:'CALL HISTORY',    sub:'Authorized Call Log',            view:'calls',     perm:'calllog' },
+  { id:'screenshot', icon:'▧', label:'SCREENSHOT',      sub:'Screen Capture',                 view:'screen',    perm:'screen' },
+  { id:'stream',     icon:'◉', label:'LIVE SCREEN',     sub:'Live Screen Streaming',          view:'screen',    perm:'screen' },
+  { id:'gallery',    icon:'▤', label:'GALLERY',         sub:'Photos & Videos',                view:'gallery',   perm:'gallery' },
+  { id:'whatsapp',   icon:'◌', label:'WHATSAPP',        sub:'Authorized / Notification Access', view:'whatsapp', perm:'notifications' },
+  { id:'messages',   icon:'✉', label:'MESSAGE',         sub:'SMS / Messages',                 view:'messages',  perm:'sms' },
+  { id:'messenger',  icon:'☷', label:'MESSENGER',       sub:'Notification Access',            view:'messenger', perm:'notifications' },
+  { id:'instagram',  icon:'◎', label:'INSTAGRAM',       sub:'Notification / Official Access', view:'instagram', perm:'notifications' },
+  { id:'lock',       icon:'▣', label:'LOCK DEVICE',     sub:'Device Lock',                    view:'lock',      perm:'deviceadmin' },
+  { id:'apps',       icon:'⊘', label:'APP BLOCK',       sub:'Application Control',            view:'apps',      perm:'apps' },
+  { id:'contacts',   icon:'♙', label:'CONTACTS',        sub:'Contacts',                       view:'contacts',  perm:'contacts' },
+  { id:'notifications', icon:'🔔', label:'NOTIFICATIONS', sub:'Notification Center',          view:'notifications', perm:'notifications' },
+  { id:'deviceinfo', icon:'◈', label:'DEVICE INFO',     sub:'Android Information',            view:'deviceinfo' }
+];
+
+/* Main navigation --------------------------------------------------------- */
+const NAV = [
+  ['dashboard','Dashboard'], ['devices','Devices'], ['location','Location'], ['battery','Battery'],
+  ['calls','Calls'], ['screen','Screen'], ['gallery','Gallery'], ['whatsapp','WhatsApp'],
+  ['messages','Messages'], ['messenger','Messenger'], ['instagram','Instagram'], ['lock','Lock'],
+  ['apps','App Control'], ['contacts','Contacts'], ['notifications','Notifications'],
+  ['security','Security'], ['logs','Activity Logs'], ['settings','Settings']
+];
+
+/* Global UI state --------------------------------------------------------- */
+const state = {
+  currentId: 'B',
+  view: 'dashboard',
+  tabs: { calls: 'ALL', gallery: 'PHOTOS' },
+  termOpen: false,
+  autoScroll: true,
+  streaming: false
+};
+
+/* ---------------------------------------------------------------
+   TERMINAL
+   --------------------------------------------------------------- */
+const termBody = $('#termBody');
+const termDock = $('#termDock');
+const termStatus = $('#termStatus');
+let termLines = 0;
+
+const TERM_CLASS = {
+  COMMAND:'t-cmd', REQUEST:'t-req', STATUS:'t-ok', READY:'t-ready',
+  PERMISSION:'t-warn', ERROR:'t-err', SYSTEM:'t-sys', NETWORK:'t-sys',
+  DEVICE:'t-sys', BATTERY:'t-sys', SYNC:'t-sys', AUTH:'t-sys', SESSION:'t-sys'
+};
+
+function colorize(line){
+  const m = line.match(/^([A-Z]+):\/\//);
+  if (!m) return esc(line);
+  const cls = TERM_CLASS[m[1]] || 't-sys';
+  return `<span class="${cls}">${esc(m[1])}://</span>${esc(line.slice(m[0].length))}`;
+}
+
+function termWrite(lines, opts = {}){
+  (Array.isArray(lines) ? lines : [lines]).forEach((line, i) => {
+    setTimeout(() => {
+      const d = document.createElement('div');
+      d.className = 'term-line';
+      d.innerHTML = colorize(line);
+      termBody.appendChild(d);
+      termLines++;
+      while (termLines > 240 && termBody.firstChild){ termBody.removeChild(termBody.firstChild); termLines--; }
+      if (state.autoScroll) termBody.scrollTop = termBody.scrollHeight;
+      if (opts.status) termStatus.textContent = opts.status;
+    }, i * 110);
+  });
+}
+
+function termCursor(on){
+  const existing = termBody.querySelector('.term-cursor-line');
+  if (existing) existing.remove();
+  if (on){
+    const d = document.createElement('div');
+    d.className = 'term-line term-cursor-line';
+    d.innerHTML = `<span class="t-ready">READY://</span> WAITING FOR COMMAND<span class="term-cursor"></span>`;
+    termBody.appendChild(d);
+    if (state.autoScroll) termBody.scrollTop = termBody.scrollHeight;
+  }
+}
+
+/* Boot sequence */
+function bootTerminal(){
+  const dev = DEVICES[state.currentId];
+  termWrite([
+    'SYSTEM:// INITIALIZING...',
+    'NETWORK:// SECURE CHANNEL ACTIVE',
+    `DEVICE:// ${dev.short} VERIFIED`,
+    `BATTERY:// ${dev.battery ?? '--'}%`,
+    'SYNC:// COMPLETE'
+  ], { status: 'READY' });
+  setTimeout(() => termCursor(true), 700);
+}
+
+/* ---------------------------------------------------------------
+   TOASTS
+   --------------------------------------------------------------- */
+function toast(msg, kind = ''){
+  const w = $('#toastWrap');
+  const t = document.createElement('div');
+  t.className = 'toast ' + kind;
+  t.textContent = msg;
+  w.appendChild(t);
+  setTimeout(() => {
+    t.style.transition = 'opacity .3s, transform .3s';
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(24px)';
+    setTimeout(() => t.remove(), 320);
+  }, 2600);
+}
+
+/* ---------------------------------------------------------------
+   MODAL
+   --------------------------------------------------------------- */
+function openModal({ head = '⚠ CONFIRM ACTION', body = '', actions = [] }){
+  const bd = $('#modalBackdrop');
+  $('#modalHead').innerHTML = head;
+  $('#modalBody').innerHTML = body;
+  const wrap = $('#modalActions');
+  wrap.innerHTML = '';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (a.cls || 'ghost');
+    b.textContent = a.label;
+    b.addEventListener('click', () => { closeModal(); a.onClick && a.onClick(); });
+    wrap.appendChild(b);
+  });
+  bd.hidden = false;
+}
+function closeModal(){ $('#modalBackdrop').hidden = true; }
+
+/* ---------------------------------------------------------------
+   ACTIVITY LOG
+   --------------------------------------------------------------- */
+function logActivity(dev, text, kind = 'ok'){
+  dev.activity.unshift([nowTime(), text, kind]);
+  if (dev.activity.length > 60) dev.activity.pop();
+  if (dev.id === state.currentId) refreshActivityPanels();
+}
+function refreshActivityPanels(){
+  const dev = DEVICES[state.currentId];
+  $$('[data-activity-list]').forEach(el => {
+    const limit = +el.dataset.activityList || 8;
+    el.innerHTML = activityListHTML(dev, limit);
+  });
+}
+
+/* ---------------------------------------------------------------
+   DEVICE SWITCHING
+   --------------------------------------------------------------- */
+function switchDevice(id){
+  if (!DEVICES[id] || id === state.currentId) return;
+  state.currentId = id;
+  const dev = DEVICES[id];
+
+  // scan flash effect
+  if (!REDUCED){
+    const f = document.createElement('div');
+    f.className = 'scan-flash';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 650);
+  }
+
+  const root = $('#viewRoot');
+  root.classList.remove('switch-anim');
+  void root.offsetWidth;
+  root.classList.add('switch-anim');
+
+  render();
+  termWrite([
+    `SYSTEM:// SWITCHING TARGET`,
+    `DEVICE:// ${dev.short} — ${dev.online ? 'ONLINE' : 'OFFLINE'}`,
+    `SESSION:// ${dev.session}`
+  ], { status: dev.online ? 'LINKED' : 'NO LINK' });
+  toast(`Target switched → ${dev.short}`, dev.online ? '' : 'warn');
+}
+
+/* ---------------------------------------------------------------
+   SERVICE EXECUTION
+   --------------------------------------------------------------- */
+function runService(id){
+  const dev = DEVICES[state.currentId];
+  const svc = SERVICES.find(s => s.id === id);
+  if (!svc) return;
+
+  termCursor(false);
+
+  if (!dev.online){
+    termWrite([
+      `COMMAND:// ${svc.label}`,
+      `REQUEST:// TARGET ${dev.short}`,
+      `ERROR:// DEVICE OFFLINE — COMMAND NOT DELIVERED`
+    ], { status: 'FAILED' });
+    logActivity(dev, `Command rejected — ${svc.label} (device offline)`, 'bad');
+    toast('Device offline — command not delivered', 'bad');
+  } else if (svc.perm && dev.perms[svc.perm] === 'review'){
+    termWrite([
+      `COMMAND:// ${svc.label}`,
+      `REQUEST:// SENT TO ${dev.short}`,
+      `PERMISSION:// REQUIRED (${svc.perm})`,
+      `STATUS:// ACTION BLOCKED`
+    ], { status: 'BLOCKED' });
+    logActivity(dev, `Permission required — ${svc.label}`, 'warn');
+    toast('Permission required on device', 'warn');
+  } else if (svc.perm && dev.perms[svc.perm] === 'denied'){
+    termWrite([
+      `COMMAND:// ${svc.label}`,
+      `PERMISSION:// DENIED (${svc.perm})`,
+      `STATUS:// ACTION BLOCKED`
+    ], { status: 'BLOCKED' });
+    logActivity(dev, `Permission denied — ${svc.label}`, 'bad');
+    toast('Permission denied on device', 'bad');
+  } else {
+    termWrite([
+      `COMMAND:// ${svc.label.toUpperCase().replace(/\s+/g, '_')}`,
+      `REQUEST:// SENT TO ${dev.short}`,
+      `STATUS:// WAITING FOR RESPONSE`
+    ], { status: 'PENDING' });
+    logActivity(dev, `Command queued — ${svc.label}`, 'ok');
+    setTimeout(() => {
+      termWrite([`STATUS:// COMMAND SUCCESS`], { status: 'READY' });
+      termCursor(true);
+    }, 850);
+    setTimeout(() => termCursor(true), 1700);
+  }
+
+  state.view = svc.view;
+  render();
+}
+
+/* ---------------------------------------------------------------
+   VIEW RENDERERS
+   --------------------------------------------------------------- */
+
+/* --- shared pieces --- */
+function permStatus(key, dev){
+  const st = dev.perms[key];
+  if (st === 'granted') return { cls:'ok',   label:'GRANTED' };
+  if (st === 'review')  return { cls:'warn', label:'REVIEW'  };
+  if (st === 'denied')  return { cls:'bad',  label:'DENIED'  };
+  return { cls:'idle', label:'UNKNOWN' };
+}
+function permPill(key, dev){
+  const p = permStatus(key, dev);
+  return `<span class="pill ${p.cls}">${p.label}</span>`;
+}
+function svcState(dev, s){
+  if (!dev.online) return ['off', 'OFFLINE'];
+  if (s.perm){
+    const st = dev.perms[s.perm];
+    if (st === 'review') return ['warn', 'PERMISSION'];
+    if (st === 'denied') return ['off', 'DENIED'];
+  }
+  return ['ready', 'READY'];
+}
+function batteryRing(pct, online){
+  const C = 2 * Math.PI * 52;
+  const off = C * (1 - (pct ?? 0) / 100);
+  const color = !online ? '#5a6b67' : pct > 40 ? 'var(--neon)' : pct > 15 ? 'var(--amber)' : 'var(--red)';
+  return `
+    <div class="ring-wrap">
+      <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
+        <circle cx="60" cy="60" r="52" class="ring-bg"></circle>
+        <circle cx="60" cy="60" r="52" class="ring-fg"
+                data-pct="${pct ?? 0}" data-circ="${C}"
+                style="stroke:${color};stroke-dasharray:${C};stroke-dashoffset:${off}"></circle>
+      </svg>
+      <div class="ring-label">
+        <b>${pct == null ? '--' : pct}%</b>
+        <span>BATTERY</span>
+      </div>
+    </div>`;
+}
+function activityListHTML(dev, limit = 8){
+  return dev.activity.slice(0, limit).map((a, i) => `
+    <div class="log-item" style="animation-delay:${i * 35}ms">
+      <span class="log-dot ${a[2]}"></span>
+      <span class="log-time">${esc(a[0])}</span>
+      <span class="log-txt">${esc(a[1])}</span>
+    </div>`).join('') || `<div class="log-item"><span class="log-txt">No activity recorded.</span></div>`;
+}
+function offlineNotice(dev){
+  if (dev.online) return '';
+  return `<div class="notice bad" style="margin-bottom:14px">
+      <span class="notice-ico">⚠</span>
+      <div><b>DEVICE OFFLINE</b>
+      ${esc(dev.short)} is not reachable. Last seen ${esc(dev.lastSeen)}. Commands will be queued and delivered after the device reconnects.</div>
+    </div>`;
+}
+function prototypeNotice(text){
+  return `<div class="notice" style="margin-top:14px">
+      <span class="notice-ico">◈</span>
+      <div><b>PROTOTYPE DATA</b>${text}</div>
+    </div>`;
+}
+function pageHead(title, sub, right = ''){
+  return `<div class="page-head">
+      <div><h2 class="page-title">${title}</h2><div class="page-sub">${sub}</div></div>
+      <div>${right}</div>
+    </div>`;
+}
+
+/* --- DASHBOARD --- */
+function viewDashboard(dev){
+  return `
+  <div class="dash">
+    <div class="col">
+      <section class="panel status-panel">
+        <div class="status-main">
+          <div class="status-top">
+            <h2 class="dev-name">${esc(dev.name)}</h2>
+            <span class="badge ${dev.online ? 'ok' : 'bad'}">${dev.online ? '● ONLINE' : '○ OFFLINE'}</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip live"><i class="dot-mini"></i> SECURE CHANNEL</span>
+            <span class="chip">LAST SYNC: ${esc(dev.lastSync)}</span>
+            <span class="chip">${esc(dev.model)}</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat"><span>NETWORK</span><b>${esc(dev.network)}</b></div>
+            <div class="stat"><span>LATENCY</span><b>${dev.latency != null ? dev.latency + ' ms' : '—'}</b></div>
+            <div class="stat"><span>UPTIME</span><b data-uptime>${dev.online ? fmtUptime(dev.uptime) : '—'}</b></div>
+            <div class="stat"><span>LAST SEEN</span><b>${esc(dev.lastSeen)}</b></div>
+          </div>
+        </div>
+        <div class="battery-widget">${batteryRing(dev.battery, dev.online)}</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span>◈</span> SERVICE MODULES <span class="ph-line"></span>
+          <span class="ph-meta">${SERVICES.length} MODULES</span></div>
+        <div class="svc-grid">
+          ${SERVICES.map(s => {
+            const [cls, lbl] = svcState(dev, s);
+            return `<button class="svc" data-action="service" data-service="${s.id}">
+              <span class="svc-scan"></span>
+              <span class="svc-state ${cls}">${lbl}</span>
+              <span class="svc-icon">${s.icon}</span>
+              <span class="svc-label">${s.label}</span>
+              <span class="svc-sub">${s.sub}</span>
+            </button>`;
+          }).join('')}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span>▤</span> COMMAND ACTIVITY <span class="ph-line"></span>
+          <span class="ph-meta">${esc(dev.short)}</span></div>
+        <div class="log-list" data-activity-list="8">${activityListHTML(dev, 8)}</div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head"><span>▧</span> DEVICE SCREEN <span class="ph-line"></span></div>
+        <div class="phone-stage">
+          <div class="phone">
+            <div class="phone-speaker"></div>
+            <div class="phone-screen">
+              <div class="ps-statusbar"><span>CYBERLINK</span><span>${dev.battery ?? '--'}%</span></div>
+              <div class="ps-body">
+                <div class="ps-name">${esc(dev.short)}</div>
+                <div class="ps-state">${dev.online ? 'Online' : 'Offline'}</div>
+                <div class="ps-batt">Battery ${dev.battery ?? '--'}%</div>
+              </div>
+              <div class="ps-stream ${dev.streaming ? 'live' : ''}">
+                ${dev.streaming
+                  ? '<b>LIVE SCREEN</b><span>CONNECTED</span>'
+                  : '<b>SCREEN STREAM</b><span>WAITING FOR USER AUTHORIZATION</span>'}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-foot">Screen streaming requires Android MediaProjection with explicit on-device user consent.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span>◍</span> PERMISSION STATUS <span class="ph-line"></span></div>
+        <div class="perm-list">
+          ${[
+            ['Location','location'], ['Notifications','notifications'], ['Screen Capture','screen'],
+            ['Call Log','calllog'], ['Contacts','contacts'], ['Gallery','gallery'],
+            ['SMS / Messages','sms'], ['Device Admin','deviceadmin']
+          ].map(([label, key]) => `
+            <div class="perm-row">
+              <span class="pr-name"><i>›</i>${label}</span>
+              ${permPill(key, dev)}
+            </div>`).join('')}
+        </div>
+        <div class="panel-foot">Status is reported by the paired Android app. This UI never assumes a permission is granted.</div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* --- DEVICES --- */
+function viewDevices(dev){
+  const realCount = Object.values(DEVICES).filter(d => d.real).length;
+  const totalCount = Object.keys(DEVICES).length;
+  const controllerUid = window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser.uid : '';
+  return `
+  ${pageHead('DEVICE MANAGEMENT', 'Authenticated pairing registry')}
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head"><span>◈</span> CONNECTED / AUTHORIZED TARGETS <span class="ph-line"></span>
+        <span class="ph-meta">${totalCount} TARGETS · ${realCount} FIREBASE</span></div>
+      <div class="panel-body grid-3">
+        ${Object.values(DEVICES).map(d => `
+          <div class="app-card" style="${d.id === state.currentId ? 'border-color:rgba(0,255,156,.6);box-shadow:0 0 24px rgba(0,255,156,.16),0 4px 0 -1px rgba(0,0,0,.8);' : ''}">
+            <div class="app-ico">${d.online ? '▣' : '▢'}</div>
+            <div class="app-meta">
+              <b>${esc(d.name)}</b>
+              <span>${esc(d.model)}</span>
+              <span style="color:${d.online ? 'var(--neon)' : 'var(--red)'}">${d.online ? '● ONLINE' : '○ OFFLINE'} · ${d.battery ?? '--'}%</span>
+              ${d.real ? `<span style="color:var(--cyan)">FIREBASE AUTHORIZED</span>` : `<span style="color:var(--muted-2)">DEMO TARGET</span>`}
+            </div>
+            <button class="btn sm ${d.id === state.currentId ? 'primary' : 'ghost'}"
+                    data-action="select-device" data-id="${esc(d.id)}">
+              ${d.id === state.currentId ? 'ACTIVE' : 'SELECT'}
+            </button>
+          </div>`).join('') || `<div class="notice warn"><span class="notice-ico">⚠</span><div>No authorized Firebase device is loaded yet.</div></div>`}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>＋</span> REAL FIREBASE PAIRING <span class="ph-line"></span></div>
+      <div class="panel-body">
+        <div class="notice" style="margin-bottom:14px">
+          <span class="notice-ico">◈</span>
+          <div><b>STEP 1 — SEND A PAIRING REQUEST</b>
+          Use the Device ID and Owner UID shown on the Phone B companion app. The request will be written to Firestore and must be approved on Phone B before the device becomes authorized.</div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label style="display:block;font-size:9px;letter-spacing:.16em;color:var(--muted);margin-bottom:6px">PHONE B DEVICE ID</label>
+            <input id="pairDeviceId" class="firebase-auth-input" value="" placeholder="android_xxxxxxxxxxxxxxxx" autocomplete="off">
+          </div>
+          <div>
+            <label style="display:block;font-size:9px;letter-spacing:.16em;color:var(--muted);margin-bottom:6px">PHONE B OWNER UID</label>
+            <input id="pairOwnerUid" class="firebase-auth-input" value="" placeholder="Firebase UID" autocomplete="off">
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn primary" data-action="send-pair-request">SEND PAIR REQUEST</button>
+          <button class="btn ghost" data-action="refresh-pairing">REFRESH AUTHORIZED DEVICES</button>
+        </div>
+        <div id="pairingStatusBox" class="notice" style="margin-top:14px;display:none"></div>
+        ${controllerUid ? `<div style="margin-top:10px;font-size:10px;color:var(--muted)">CONTROLLER UID: <span style="color:var(--cyan)">${esc(controllerUid)}</span></div>` : ''}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>ℹ</span> PAIRING RULE <span class="ph-line"></span></div>
+      <div class="panel-body">
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>NO AUTOMATIC TRUST</b>
+          A device is not considered authorized just because a pairing request exists. Phone B must explicitly approve the request, and the approved controller must receive an active <code>deviceAccess</code> record.</div>
+        </div>
+      </div>
+    </section>
+  </div>`;
+}
+
+/* --- LOCATION --- */
+function viewLocation(dev){
+  const p = permStatus('location', dev);
+  return `
+  ${pageHead(esc(dev.short) + ' LOCATION', 'Last updated: ' + (dev.online ? '5 seconds ago' : dev.lastSeen))}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>⌖</span> GEO TRACKING <span class="ph-line"></span>
+        <span class="ph-meta">${p.label}</span></div>
+      <div class="panel-body">
+        <div class="map-stage">
+          <div class="map-cross"></div>
+          <div class="map-center"></div>
+          <div class="map-corner tl">GRID REF // SECTOR-07</div>
+          <div class="map-corner tr">SIGNAL // ${dev.online ? 'LOCKED' : 'LOST'}</div>
+          <div class="map-corner bl">ZOOM // 1:1</div>
+          <div class="map-corner br">SRC // DEVICE GPS</div>
+          <div class="map-overlay-msg">
+            ${dev.online ? (p.label === 'GRANTED' ? 'AWAITING DEVICE TELEMETRY' : 'LOCATION PERMISSION REQUIRED') : 'DEVICE OFFLINE — NO TELEMETRY'}
+          </div>
+        </div>
+      </div>
+      <div class="panel-foot">No live coordinates are displayed until the device reports them. This UI never fabricates a position.</div>
+    </section>
+
+    <div class="stack">
+      <section class="panel">
+        <div class="panel-head"><span>◍</span> LOCATION PERMISSION <span class="ph-line"></span></div>
+        <div class="perm-list">
+          <div class="perm-row"><span class="pr-name"><i>›</i>Location</span>${permPill('location', dev)}</div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Background Access</span>${permPill('location', dev)}</div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Precise Accuracy</span><span class="pill idle">UNKNOWN</span></div>
+        </div>
+        <div class="panel-body">
+          <button class="btn" data-action="service" data-service="location">REQUEST LOCATION UPDATE</button>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><span>▤</span> RECENT PINGS <span class="ph-line"></span></div>
+        <div class="log-list" data-activity-list="6">${activityListHTML(dev, 6)}</div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* --- BATTERY --- */
+function viewBattery(dev){
+  const bars = [62, 71, 68, 74, 79, 76, 80, 78, 78, 77, 78, 78];
+  return `
+  ${pageHead(esc(dev.short) + ' BATTERY', 'Power telemetry · ' + esc(dev.lastSync))}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>▣</span> POWER CORE <span class="ph-line"></span></div>
+      <div class="panel-body" style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        ${batteryRing(dev.battery, dev.online)}
+        <div style="flex:1 1 220px;min-width:200px;">
+          <div class="stat-grid" style="margin-top:0">
+            <div class="stat"><span>STATE</span><b>${dev.charging ? 'CHARGING' : (dev.online ? 'DISCHARGING' : 'UNKNOWN')}</b></div>
+            <div class="stat"><span>LEVEL</span><b>${dev.battery ?? '--'}%</b></div>
+            <div class="stat"><span>TEMPERATURE</span><b>${dev.online ? '31.4 °C' : '—'}</b></div>
+            <div class="stat"><span>VOLTAGE</span><b>${dev.online ? '4.12 V' : '—'}</b></div>
+            <div class="stat"><span>HEALTH</span><b>${dev.online ? 'GOOD' : '—'}</b></div>
+            <div class="stat"><span>TIME REMAINING</span><b>${dev.online ? '6 h 12 m' : '—'}</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>◫</span> 12-HOUR TREND <span class="ph-line"></span></div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:flex-end;gap:6px;height:150px;padding:8px 4px;border-bottom:1px solid var(--line);">
+          ${bars.map((b, i) => `
+            <div style="flex:1;height:${b}%;border-radius:4px 4px 0 0;
+              background:linear-gradient(180deg, rgba(0,255,156,.75), rgba(0,255,156,.12));
+              box-shadow:0 0 14px rgba(0,255,156,.25);
+              animation:logIn .5s ease backwards;animation-delay:${i * 45}ms;"></div>`).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:8.5px;letter-spacing:.14em;color:var(--muted-2)">
+          <span>-12h</span><span>-9h</span><span>-6h</span><span>-3h</span><span>NOW</span>
+        </div>
+      </div>
+      <div class="panel-foot">Trend is rendered from locally cached samples in this prototype.</div>
+    </section>
+  </div>`;
+}
+
+/* --- CALLS --- */
+function viewCalls(dev){
+  const tabs = ['ALL', 'INCOMING', 'OUTGOING', 'MISSED'];
+  const granted = dev.perms.calllog === 'granted';
+  const rows = granted ? [
+    ['+91 ••••• 4••42', 'CONTACT — ••••', 'INCOMING', '21:48', '02:14'],
+    ['+91 ••••• 8••07', 'UNKNOWN', 'OUTGOING', '20:31', '00:48'],
+    ['+91 ••••• 2••19', 'CONTACT — ••••', 'MISSED', '19:02', '—'],
+    ['+91 ••••• 9••65', 'CONTACT — ••••', 'INCOMING', '17:22', '05:36'],
+    ['+91 ••••• 1••08', 'UNKNOWN', 'OUTGOING', '15:10', '01:02']
+  ] : [];
+
+  return `
+  ${pageHead(esc(dev.short) + ' CALL HISTORY', 'Authorized call log access')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>☎</span> CALL LOG <span class="ph-line"></span>
+      ${permPill('calllog', dev)}</div>
+    <div class="panel-body">
+      <div class="tabs" style="margin-bottom:14px">
+        ${tabs.map(t => `<div class="tab ${state.tabs.calls === t ? 'active' : ''}"
+          data-action="tab" data-group="calls" data-tab="${t}">${t}</div>`).join('')}
+      </div>
+
+      ${!granted ? `
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>PERMISSION NOT GRANTED</b>
+          The companion app on ${esc(dev.short)} has not been granted READ_CALL_LOG.
+          Call history cannot be retrieved until the device owner explicitly grants this permission
+          in Android Settings → Apps → Permissions.</div>
+        </div>
+        <div style="margin-top:14px">
+          <button class="btn" data-action="service" data-service="calls">RE-REQUEST PERMISSION</button>
+        </div>
+      ` : `
+        <div class="table-wrap">
+          <table class="cyber">
+            <thead><tr><th>Number</th><th>Contact</th><th>Type</th><th>Time</th><th>Duration</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr>
+                <td class="t-cy">${r[0]}</td>
+                <td>${r[1]}</td>
+                <td class="${r[2] === 'MISSED' ? 't-bad-text' : r[2] === 'INCOMING' ? 't-ok-text' : 't-warn-text'}">${r[2]}</td>
+                <td>${r[3]}</td>
+                <td>${r[4]}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        ${prototypeNotice('Rows above are masked placeholder entries for layout validation. Real entries arrive only from the Android app after READ_CALL_LOG is granted.')}
+      `}
+    </div>
+  </section>`;
+}
+
+/* --- SCREEN --- */
+function viewScreen(dev){
+  const p = permStatus('screen', dev);
+  const live = dev.streaming;
+  return `
+  ${pageHead(esc(dev.short) + ' SCREEN', 'Capture & live streaming')}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>◉</span> LIVE SCREEN STREAM <span class="ph-line"></span>
+        <span class="ph-meta">${live ? 'LIVE' : 'IDLE'}</span></div>
+      <div class="panel-body">
+        <div class="stream-stage">
+          ${live ? '<div class="stream-noise"></div>' : ''}
+          <div class="stream-msg ${live ? 'live' : ''}">
+            ${live
+              ? '<b>LIVE SCREEN CONNECTED</b><span>Encrypted media channel active<br>Source: MediaProjection session</span>'
+              : '<b>SCREEN STREAM</b><span>WAITING FOR USER AUTHORIZATION<br>Android MediaProjection consent required on device</span>'}
+          </div>
+        </div>
+      </div>
+      <div class="panel-body" style="border-top:1px solid var(--line);display:flex;gap:9px;flex-wrap:wrap;">
+        <button class="btn primary" data-action="request-stream" ${!dev.online ? 'disabled' : ''}>REQUEST STREAM</button>
+        <button class="btn ghost" data-action="screenshot" ${!dev.online ? 'disabled' : ''}>CAPTURE FRAME</button>
+        <button class="btn danger" data-action="stop-stream" ${!live ? 'disabled' : ''}>STOP STREAM</button>
+      </div>
+      <div class="panel-foot">Real screen streaming must use Android's MediaProjection flow with explicit on-device user consent. This UI never bypasses that consent.</div>
+    </section>
+
+    <div class="stack">
+      <section class="panel">
+        <div class="panel-head"><span>◍</span> CAPTURE PERMISSIONS <span class="ph-line"></span></div>
+        <div class="perm-list">
+          <div class="perm-row"><span class="pr-name"><i>›</i>Screen Capture</span>${permPill('screen', dev)}</div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>MediaProjection Consent</span>
+            <span class="pill ${live ? 'ok' : 'idle'}">${live ? 'ACTIVE' : 'NOT ACTIVE'}</span></div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Foreground Service</span>
+            <span class="pill ${dev.online ? 'ok' : 'idle'}">${dev.online ? 'RUNNING' : 'STOPPED'}</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span>▤</span> SESSION LOG <span class="ph-line"></span></div>
+        <div class="log-list" data-activity-list="7">${activityListHTML(dev, 7)}</div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* --- GALLERY --- */
+function viewGallery(dev){
+  const tabs = ['PHOTOS', 'VIDEOS', 'FILES'];
+  const active = state.tabs.gallery;
+  const icon = active === 'PHOTOS' ? '▤' : active === 'VIDEOS' ? '▶' : '▦';
+  const tiles = Array.from({ length: 12 }, (_, i) => `
+    <div class="media-tile">
+      <span class="badge-file">${active.slice(0, 3)}-${pad2(i + 1)}</span>
+      <span>${icon}</span>
+      <small>PLACEHOLDER</small>
+    </div>`).join('');
+
+  return `
+  ${pageHead(esc(dev.short) + ' GALLERY', 'Media index · authorized access only')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>▤</span> MEDIA BROWSER <span class="ph-line"></span>
+      ${permPill('gallery', dev)}</div>
+    <div class="panel-body">
+      <div class="tabs" style="margin-bottom:14px">
+        ${tabs.map(t => `<div class="tab ${active === t ? 'active' : ''}"
+          data-action="tab" data-group="gallery" data-tab="${t}">${t}</div>`).join('')}
+      </div>
+      <div class="media-grid">${tiles}</div>
+      ${prototypeNotice('Tiles are placeholders. Real gallery access requires the Android media permissions or the system photo picker, and is served by the companion app.')}
+    </div>
+  </section>`;
+}
+
+/* --- MESSAGING SERVICES (shared renderer) --- */
+function messagingPage(dev, cfg){
+  const na = dev.perms.notifications;
+  const enabled = na === 'granted';
+  return `
+  ${pageHead(cfg.title, cfg.sub)}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>${cfg.icon}</span> ACCESS STATUS <span class="ph-line"></span>
+        ${permPill('notifications', dev)}</div>
+      <div class="perm-list">
+        <div class="perm-row"><span class="pr-name"><i>›</i>Notification Access</span>
+          <span class="pill ${enabled ? 'ok' : 'bad'}">${enabled ? 'ENABLED' : 'DISABLED'}</span></div>
+        <div class="perm-row"><span class="pr-name"><i>›</i>Official API Access</span>
+          <span class="pill idle">${cfg.official}</span></div>
+        <div class="perm-row"><span class="pr-name"><i>›</i>Private Database Access</span>
+          <span class="pill bad">NOT AVAILABLE</span></div>
+      </div>
+      <div class="panel-body">
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>DIRECT PRIVATE CHAT DATABASE ACCESS IS NOT AVAILABLE</b>
+          ${esc(cfg.name)} encrypts and sandboxes its private message database. A companion app cannot read it.
+          ${cfg.accessNote}</div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:9px;flex-wrap:wrap;">
+          <button class="btn" data-action="open-notification-settings">OPEN NOTIFICATION ACCESS</button>
+          <button class="btn ghost" data-action="service" data-service="notifications">VIEW CAPTURED NOTIFICATIONS</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>▤</span> CAPTURED NOTIFICATIONS <span class="ph-line"></span>
+        <span class="ph-meta">${enabled ? 'LIVE FEED' : 'FEED UNAVAILABLE'}</span></div>
+      <div class="log-list">
+        ${enabled && dev.online ? [
+          ['22:11:02', `${cfg.name}: new message notification captured`, 'ok'],
+          ['22:10:37', `${cfg.name}: notification dismissed by user`, 'warn'],
+          ['22:09:11', `${cfg.name}: notification channel updated`, 'ok'],
+          ['22:04:55', `${cfg.name}: notification listener reconnected`, 'ok']
+        ].map(a => `
+          <div class="log-item">
+            <span class="log-dot ${a[2]}"></span>
+            <span class="log-time">${a[0]}</span>
+            <span class="log-txt">${esc(a[1])}</span>
+          </div>`).join('') : `
+          <div class="log-item"><span class="log-txt">No notification feed. Notification access is not enabled on this device.</span></div>`}
+      </div>
+      <div class="panel-foot">Only notification content explicitly posted by the OS to a user-enabled listener is shown. Message bodies may be redacted by the source app.</div>
+    </section>
+  </div>`;
+}
+function viewWhatsApp(dev){
+  return messagingPage(dev, {
+    title: 'WHATSAPP', sub: 'Notification access bridge', icon: '◌', name: 'WhatsApp',
+    official: 'NOT CONFIGURED',
+    accessNote: 'Supported path: user-enabled Notification Listener access, which surfaces notification titles and preview text only.'
+  });
+}
+function viewMessenger(dev){
+  return messagingPage(dev, {
+    title: 'MESSENGER', sub: 'Notification access bridge', icon: '☷', name: 'Messenger',
+    official: 'NOT CONFIGURED',
+    accessNote: 'Supported path: user-enabled Notification Listener access. Messenger does not expose a public chat-read API.'
+  });
+}
+function viewInstagram(dev){
+  return messagingPage(dev, {
+    title: 'INSTAGRAM', sub: 'Notification / official access', icon: '◎', name: 'Instagram',
+    official: 'NOT CONFIGURED',
+    accessNote: 'Supported path: user-enabled Notification Listener access or an official Instagram Graph API integration with the account owner\'s consent.'
+  });
+}
+
+/* --- SMS / MESSAGES --- */
+function viewMessages(dev){
+  const granted = dev.perms.sms === 'granted';
+  return `
+  ${pageHead(esc(dev.short) + ' MESSAGES', 'SMS & messaging')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>✉</span> SMS THREADS <span class="ph-line"></span>
+      ${permPill('sms', dev)}</div>
+    <div class="panel-body">
+      ${!granted ? `
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>PERMISSION NOT GRANTED</b>
+          READ_SMS / RECEIVE_SMS has not been granted on ${esc(dev.short)}. Message content is unavailable
+          until the device owner explicitly grants it. On Android 13+, the default SMS role may also be required.</div>
+        </div>` : `
+        <div class="table-wrap">
+          <table class="cyber">
+            <thead><tr><th>Thread</th><th>Last Message</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="t-cy">+91 ••••• 4••42</td><td>Placeholder message preview — awaiting device feed</td><td>22:04</td><td class="t-ok-text">DELIVERED</td></tr>
+              <tr><td class="t-cy">+91 ••••• 8••07</td><td>Placeholder message preview — awaiting device feed</td><td>20:47</td><td class="t-ok-text">DELIVERED</td></tr>
+              <tr><td class="t-cy">+91 ••••• 2••19</td><td>Placeholder message preview — awaiting device feed</td><td>18:12</td><td class="t-warn-text">PENDING</td></tr>
+            </tbody>
+          </table>
+        </div>
+        ${prototypeNotice('Placeholder threads for layout validation. Real SMS content is delivered only by the Android app after the SMS permissions are granted.')}
+      `}
+    </div>
+  </section>`;
+}
+
+/* --- LOCK --- */
+function viewLock(dev){
+  return `
+  ${pageHead(esc(dev.short) + ' LOCK', 'Device security action')}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>▣</span> LOCK DEVICE <span class="ph-line"></span>
+        ${permPill('deviceadmin', dev)}</div>
+      <div class="panel-body">
+        <div class="notice warn" style="margin-bottom:14px">
+          <span class="notice-ico">⚠</span>
+          <div><b>AUTHORIZED MECHANISM ONLY</b>
+          Locking uses Android's supported Device Administration API (DevicePolicyManager.lockNow) or an
+          equivalent authorized mechanism. This system never bypasses PIN, password or biometric authentication,
+          and cannot unlock a device.</div>
+        </div>
+        <div class="stat-grid" style="margin-top:0;margin-bottom:16px;">
+          <div class="stat"><span>TARGET</span><b>${esc(dev.short)}</b></div>
+          <div class="stat"><span>DEVICE ADMIN</span><b>${dev.perms.deviceadmin === 'granted' ? 'ACTIVE' : 'INACTIVE'}</b></div>
+          <div class="stat"><span>STATE</span><b>${dev.online ? 'REACHABLE' : 'UNREACHABLE'}</b></div>
+          <div class="stat"><span>LAST LOCK</span><b>${esc(dev.lastAuth)}</b></div>
+        </div>
+        <button class="btn danger" data-action="lock-device" ${!dev.online ? 'disabled' : ''}>▣ LOCK DEVICE</button>
+      </div>
+      <div class="panel-foot">The device must have granted Device Administrator rights to the companion app before this action can succeed.</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>▤</span> SECURITY ACTIONS LOG <span class="ph-line"></span></div>
+      <div class="log-list" data-activity-list="10">${activityListHTML(dev, 10)}</div>
+    </section>
+  </div>`;
+}
+
+/* --- APP CONTROL --- */
+const APP_LIST = [
+  { name: 'Chrome',    pkg: 'com.android.chrome',      state: 'allowed' },
+  { name: 'YouTube',   pkg: 'com.google.android.youtube', state: 'allowed' },
+  { name: 'WhatsApp',  pkg: 'com.whatsapp',            state: 'blocked' },
+  { name: 'Instagram', pkg: 'com.instagram.android',   state: 'allowed' },
+  { name: 'Messenger', pkg: 'com.facebook.orca',       state: 'review'  },
+  { name: 'Gallery',   pkg: 'com.android.gallery3d',   state: 'allowed' }
+];
+function viewApps(dev){
+  const granted = dev.perms.apps === 'granted';
+  return `
+  ${pageHead(esc(dev.short) + ' APP CONTROL', 'Application access policy')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>⊘</span> INSTALLED APPLICATIONS <span class="ph-line"></span>
+      ${permPill('apps', dev)}</div>
+    <div class="panel-body">
+      ${!granted ? `
+        <div class="notice warn" style="margin-bottom:14px">
+          <span class="notice-ico">⚠</span>
+          <div><b>PERMISSION REQUIRED</b>
+          Application control requires Android Device Administrator or an authorized accessibility/work-profile
+          mechanism, explicitly enabled by the device owner. No control is applied until then.</div>
+        </div>` : ''}
+      <div class="grid-3">
+        ${APP_LIST.map(a => {
+          const stateMap = {
+            allowed: ['ok', 'ALLOWED'],
+            blocked: ['bad', 'BLOCKED'],
+            review:  ['warn', 'PERMISSION REQUIRED']
+          };
+          const [cls, label] = stateMap[a.state];
+          return `
+          <div class="app-card">
+            <div class="app-ico">▦</div>
+            <div class="app-meta">
+              <b>${a.name}</b>
+              <span>${a.pkg}</span>
+              <span style="margin-top:5px"><span class="pill ${cls}">${label}</span></span>
+            </div>
+            <button class="btn sm ${a.state === 'blocked' ? 'primary' : 'ghost'}"
+              data-action="toggle-app" data-app="${a.name}">
+              ${a.state === 'blocked' ? 'ALLOW' : 'BLOCK'}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="notice" style="margin-top:14px">
+        <span class="notice-ico">◈</span>
+        <div><b>SUPPORTED MECHANISMS ONLY</b>
+        Blocking is applied through Android-supported device administration or work-profile policies with
+        explicit user authorization. This system does not modify app data or bypass OS security.</div>
+      </div>
+    </div>
+  </section>`;
+}
+
+/* --- CONTACTS --- */
+function viewContacts(dev){
+  const granted = dev.perms.contacts === 'granted';
+  return `
+  ${pageHead(esc(dev.short) + ' CONTACTS', 'Address book index')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>♙</span> CONTACT INDEX <span class="ph-line"></span>
+      ${permPill('contacts', dev)}</div>
+    <div class="panel-body">
+      ${!granted ? `
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>PERMISSION NOT GRANTED</b>
+          READ_CONTACTS has not been granted on ${esc(dev.short)}. The address book cannot be read until the
+          device owner explicitly grants it.</div>
+        </div>` : `
+        <div class="table-wrap">
+          <table class="cyber">
+            <thead><tr><th>Name</th><th>Number</th><th>Source</th><th>Synced</th></tr></thead>
+            <tbody>
+              <tr><td>CONTACT — ••••</td><td class="t-cy">+91 ••••• 4••42</td><td>Local</td><td class="t-ok-text">YES</td></tr>
+              <tr><td>CONTACT — ••••</td><td class="t-cy">+91 ••••• 2••19</td><td>Google</td><td class="t-ok-text">YES</td></tr>
+              <tr><td>CONTACT — ••••</td><td class="t-cy">+91 ••••• 9••65</td><td>Local</td><td class="t-ok-text">YES</td></tr>
+            </tbody>
+          </table>
+        </div>
+        ${prototypeNotice('Placeholder contact rows for layout validation. Real contacts are delivered only after the Android app receives READ_CONTACTS.')}
+      `}
+    </div>
+  </section>`;
+}
+
+/* --- NOTIFICATIONS --- */
+function viewNotifications(dev){
+  const enabled = dev.perms.notifications === 'granted';
+  return `
+  ${pageHead(esc(dev.short) + ' NOTIFICATIONS', 'Notification center')}
+  ${offlineNotice(dev)}
+  <section class="panel">
+    <div class="panel-head"><span>🔔</span> NOTIFICATION FEED <span class="ph-line"></span>
+      ${permPill('notifications', dev)}</div>
+    <div class="panel-body">
+      ${!enabled ? `
+        <div class="notice warn">
+          <span class="notice-ico">⚠</span>
+          <div><b>NOTIFICATION ACCESS DISABLED</b>
+          The companion app has not been granted Notification Listener access on ${esc(dev.short)}.
+          Enable it in Android Settings → Apps → Special access → Notification access.</div>
+        </div>` : `
+        <div class="log-list" style="max-height:none;">
+          ${[
+            ['22:11:02', 'SYSTEM', 'Device heartbeat acknowledged', 'ok'],
+            ['22:10:44', 'WHATSAPP', 'New message notification captured', 'ok'],
+            ['22:10:21', 'MESSENGER', 'Notification dismissed by user', 'warn'],
+            ['22:09:58', 'INSTAGRAM', 'New like notification captured', 'ok'],
+            ['22:09:12', 'GALLERY', 'Media scan completed', 'ok'],
+            ['22:08:40', 'SYSTEM', 'Battery optimization event', 'warn']
+          ].map(n => `
+            <div class="log-item">
+              <span class="log-dot ${n[3]}"></span>
+              <span class="log-time">${n[0]}</span>
+              <span class="log-txt"><b style="color:var(--neon);letter-spacing:.14em;font-size:9px;">${n[1]}</b> — ${esc(n[2])}</span>
+            </div>`).join('')}
+        </div>
+        ${prototypeNotice('Notification content is only available through a user-enabled Notification Listener. Source apps may redact message bodies.')}
+      `}
+    </div>
+  </section>`;
+}
+
+/* --- DEVICE INFO --- */
+function viewDeviceInfo(dev){
+  return `
+  ${pageHead(esc(dev.short) + ' DEVICE INFO', 'Android system information')}
+  ${offlineNotice(dev)}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>◈</span> HARDWARE & OS <span class="ph-line"></span></div>
+      <div class="perm-list">
+        ${[
+          ['Device Name', dev.short],
+          ['Model', dev.model.split('·')[0].trim()],
+          ['Android Version', dev.model.split('·')[1] ? dev.model.split('·')[1].trim() : '—'],
+          ['Build Fingerprint', dev.online ? '••••••••••••••••' : '—'],
+          ['Architecture', dev.online ? 'arm64-v8a' : '—'],
+          ['Screen Density', dev.online ? '420 dpi' : '—'],
+          ['Storage Free', dev.online ? '84.2 GB' : '—'],
+          ['Security Patch', dev.online ? '2024-11-05' : '—']
+        ].map(([k, v]) => `
+          <div class="perm-row"><span class="pr-name"><i>›</i>${k}</span>
+            <b style="color:#d8fff0;font-weight:600;letter-spacing:.08em;">${esc(v)}</b></div>`).join('')}
+      </div>
+    </section>
+    <div class="stack">
+      <section class="panel">
+        <div class="panel-head"><span>◍</span> CONNECTION <span class="ph-line"></span></div>
+        <div class="perm-list">
+          <div class="perm-row"><span class="pr-name"><i>›</i>Status</span>
+            <span class="pill ${dev.online ? 'ok' : 'bad'}">${dev.online ? 'ONLINE' : 'OFFLINE'}</span></div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Network</span>
+            <b style="color:#d8fff0">${esc(dev.network)}</b></div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Latency</span>
+            <b style="color:#d8fff0">${dev.latency != null ? dev.latency + ' ms' : '—'}</b></div>
+          <div class="perm-row"><span class="pr-name"><i>›</i>Last Sync</span>
+            <b style="color:#d8fff0">${esc(dev.lastSync)}</b></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><span>▤</span> RECENT EVENTS <span class="ph-line"></span></div>
+        <div class="log-list" data-activity-list="6">${activityListHTML(dev, 6)}</div>
+      </section>
+    </div>
+  </div>`;
+}
+
+/* --- SECURITY --- */
+function viewSecurity(dev){
+  return `
+  ${pageHead('SECURITY CENTER', 'Session integrity & device trust')}
+  <div class="stack">
+    <div class="sec-grid">
+      <div class="sec-card"><span>PAIRING</span><b>${esc(dev.pairing)}</b><i>Mutual authentication completed</i></div>
+      <div class="sec-card"><span>SESSION</span><b>${esc(dev.session)}</b><i>Transport layer encrypted</i></div>
+      <div class="sec-card"><span>DEVICE</span><b>${esc(dev.trust)}</b><i>Trust anchor verified</i></div>
+      <div class="sec-card"><span>LAST AUTHENTICATION</span><b>${esc(dev.lastAuth)}</b><i>Token rotated automatically</i></div>
+    </div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <div class="panel-head"><span>◈</span> SECURITY CHECKLIST <span class="ph-line"></span></div>
+        <div class="perm-list">
+          ${[
+            ['Authenticated Pairing', 'ok', 'VERIFIED'],
+            ['Encrypted Transport', 'ok', 'AES-256-GCM'],
+            ['Device Trust Anchor', 'ok', 'TRUSTED'],
+            ['Session Token Rotation', 'ok', 'AUTOMATIC'],
+            ['Certificate Pinning', 'ok', 'ENABLED'],
+            ['Screen Capture Consent', dev.perms.screen === 'granted' ? 'ok' : 'warn',
+              dev.perms.screen === 'granted' ? 'GRANTED' : 'REQUIRED'],
+            ['Device Administrator', dev.perms.deviceadmin === 'granted' ? 'ok' : 'warn',
+              dev.perms.deviceadmin === 'granted' ? 'ACTIVE' : 'INACTIVE']
+          ].map(([k, cls, v]) => `
+            <div class="perm-row">
+              <span class="pr-name"><i>›</i>${k}</span>
+              <span class="pill ${cls === 'ok' ? 'ok' : 'warn'}">${v}</span>
+            </div>`).join('')}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span>▤</span> SECURITY EVENTS <span class="ph-line"></span></div>
+        <div class="log-list" data-activity-list="9">${activityListHTML(dev, 9)}</div>
+        <div class="panel-foot">No passwords, tokens, API keys or credentials are ever stored or displayed in this interface.</div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head"><span>⚠</span> SESSION CONTROLS <span class="ph-line"></span></div>
+      <div class="panel-body" style="display:flex;gap:9px;flex-wrap:wrap;">
+        <button class="btn" data-action="rotate-session">ROTATE SESSION KEY</button>
+        <button class="btn ghost" data-action="nav" data-view="logs">VIEW FULL AUDIT LOG</button>
+        <button class="btn danger" data-action="revoke-session">REVOKE SESSION</button>
+      </div>
+    </section>
+  </div>`;
+}
+
+/* --- ACTIVITY LOGS --- */
+function viewLogs(dev){
+  return `
+  ${pageHead('ACTIVITY LOGS', 'Audit trail · ' + esc(dev.short))}
+  <section class="panel">
+    <div class="panel-head"><span>▤</span> FULL AUDIT TRAIL <span class="ph-line"></span>
+      <span class="ph-meta">${dev.activity.length} ENTRIES</span></div>
+    <div class="log-list" style="max-height:none;">
+      ${dev.activity.map((a, i) => `
+        <div class="log-item" style="animation-delay:${Math.min(i * 25, 500)}ms">
+          <span class="log-dot ${a[2]}"></span>
+          <span class="log-time">${esc(a[0])}</span>
+          <span class="log-txt">${esc(a[1])}</span>
+        </div>`).join('')}
+    </div>
+    <div class="panel-foot">Audit entries are retained locally in this prototype and are not transmitted anywhere.</div>
+  </section>`;
+}
+
+/* --- SETTINGS --- */
+function viewSettings(dev){
+  return `
+  ${pageHead('SETTINGS', 'Controller preferences')}
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><span>⚙</span> INTERFACE <span class="ph-line"></span></div>
+      <div class="setting-row">
+        <div class="sr-txt"><b>TERMINAL AUTO-SCROLL</b><span>Follow new terminal output automatically</span></div>
+        <div class="switch ${state.autoScroll ? 'on' : ''}" data-action="toggle-setting" data-key="autoScroll"></div>
+      </div>
+      <div class="setting-row">
+        <div class="sr-txt"><b>TERMINAL DOCK</b><span>Keep the system terminal expanded</span></div>
+        <div class="switch ${state.termOpen ? 'on' : ''}" data-action="toggle-setting" data-key="termOpen"></div>
+      </div>
+      <div class="setting-row">
+        <div class="sr-txt"><b>REDUCED MOTION</b><span>Detected from system preference</span></div>
+        <span class="pill ${REDUCED ? 'ok' : 'idle'}">${REDUCED ? 'ENABLED' : 'DISABLED'}</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><span>◈</span> SESSION <span class="ph-line"></span></div>
+      <div class="perm-list">
+        <div class="perm-row"><span class="pr-name"><i>›</i>Controller</span><b style="color:#d8fff0">OPERATOR-01</b></div>
+        <div class="perm-row"><span class="pr-name"><i>›</i>Active Target</span><b style="color:#d8fff0">${esc(dev.short)}</b></div>
+        <div class="perm-row"><span class="pr-name"><i>›</i>Session State</span>
+          <span class="pill ${dev.session === 'ENCRYPTED' ? 'ok' : 'warn'}">${esc(dev.session)}</span></div>
+        <div class="perm-row"><span class="pr-name"><i>›</i>Last Authentication</span><b style="color:#d8fff0">${esc(dev.lastAuth)}</b></div>
+      </div>
+      <div class="panel-body" style="display:flex;gap:9px;flex-wrap:wrap;">
+        <button class="btn ghost" data-action="nav" data-view="security">SECURITY CENTER</button>
+        <button class="btn danger" data-action="logout">LOG OUT</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" style="margin-top:16px">
+    <div class="panel-head"><span>ⓘ</span> ABOUT THIS BUILD <span class="ph-line"></span></div>
+    <div class="panel-body">
+      <div class="notice">
+        <span class="notice-ico">◈</span>
+        <div><b>FRONT-END PROTOTYPE — NO REAL DEVICE CONTROL</b>
+        All values on screen are local mock state. This build is prepared for later connection to
+        Firebase Authentication, Firestore/Realtime Database, an authenticated pairing handshake, and the
+        Android companion app. Every real capability will be permission-gated and consent-driven.</div>
+      </div>
+    </div>
+  </section>`;
+}
+
+/* ---------------------------------------------------------------
+   VIEW MAP + RENDER
+   --------------------------------------------------------------- */
+const VIEWS = {
+  dashboard: viewDashboard,
+  devices: viewDevices,
+  location: viewLocation,
+  battery: viewBattery,
+  calls: viewCalls,
+  screen: viewScreen,
+  gallery: viewGallery,
+  whatsapp: viewWhatsApp,
+  messages: viewMessages,
+  messenger: viewMessenger,
+  instagram: viewInstagram,
+  lock: viewLock,
+  apps: viewApps,
+  contacts: viewContacts,
+  notifications: viewNotifications,
+  deviceinfo: viewDeviceInfo,
+  security: viewSecurity,
+  logs: viewLogs,
+  settings: viewSettings
+};
+
+function renderNav(){
+  $('#mainNav').innerHTML = NAV.map(([id, label]) =>
+    `<button class="navtab ${state.view === id ? 'active' : ''}" data-action="nav" data-view="${id}">${label}</button>`
+  ).join('');
+}
+
+function renderDeviceList(){
+  const list = Object.values(DEVICES);
+  $('#devCount').textContent = list.length;
+  $('#deviceList').innerHTML = list.map(d => {
+    const active = d.id === state.currentId;
+    const barCls = !d.online ? 'off' : (d.battery != null && d.battery <= 20) ? 'low' : '';
+    return `
+      <button class="dev-card ${active ? 'active' : ''}" data-action="select-device" data-id="${d.id}">
+        <div class="dc-top">
+          <span class="dc-name">${esc(d.name)}</span>
+        </div>
+        <div class="dc-status ${d.online ? 'ok' : 'bad'}">
+          ${d.online ? '● ONLINE' : '○ OFFLINE'}
+        </div>
+        <div class="dc-meta">
+          ${d.online ? `Android · Battery ${d.battery ?? '--'}%` : `Last seen: ${esc(d.lastSeen)}`}
+        </div>
+        <div class="dc-bar ${barCls}"><i style="width:${d.online ? (d.battery ?? 0) : 0}%"></i></div>
+      </button>`;
+  }).join('');
+}
+
+function animateRings(){
+  $$('.ring-fg').forEach(c => {
+    const pct = +c.dataset.pct;
+    const C = +c.dataset.circ;
+    c.style.strokeDashoffset = C;
+    requestAnimationFrame(() => {
+      setTimeout(() => { c.style.strokeDashoffset = C * (1 - pct / 100); }, 40);
+    });
+  });
+}
+
+function render(){
+  renderNav();
+  renderDeviceList();
+  const dev = DEVICES[state.currentId];
+  const fn = VIEWS[state.view] || viewDashboard;
+  $('#viewRoot').innerHTML = fn(dev);
+  animateRings();
+}
+
+/* ---------------------------------------------------------------
+   ACTION HANDLERS
+   --------------------------------------------------------------- */
+function goTo(view){
+  if (!VIEWS[view]) view = 'dashboard';
+  state.view = view;
+  render();
+  window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' });
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  const action = t.dataset.action;
+  const dev = DEVICES[state.currentId];
+
+  switch (action){
+
+    case 'nav':
+      goTo(t.dataset.view);
+      break;
+
+    case 'select-device':
+      switchDevice(t.dataset.id);
+      break;
+
+    case 'service':
+      runService(t.dataset.service);
+      break;
+
+    case 'tab':
+      state.tabs[t.dataset.group] = t.dataset.tab;
+      render();
+      break;
+
+    case 'toggle-term': {
+      state.termOpen = !state.termOpen;
+      termDock.classList.toggle('collapsed', !state.termOpen);
+      document.body.classList.toggle('term-open', state.termOpen);
+      break;
+    }
+
+    case 'toggle-setting': {
+      const key = t.dataset.key;
+      if (key === 'autoScroll'){
+        state.autoScroll = !state.autoScroll;
+        if (state.autoScroll) termBody.scrollTop = termBody.scrollHeight;
+      } else if (key === 'termOpen'){
+        state.termOpen = !state.termOpen;
+        termDock.classList.toggle('collapsed', !state.termOpen);
+        document.body.classList.toggle('term-open', state.termOpen);
+      }
+      render();
+      break;
+    }
+
+    case 'add-device':
+      openModal({
+        head: '＋ ADD DEVICE',
+        body: `<b>Authenticated pairing is required.</b><br><br>
+               Open the companion app on the Android device, sign in with the same controller account,
+               and confirm the pairing code shown on both screens.<br><br>
+               A device cannot be added, monitored or controlled without this mutual confirmation.`,
+        actions: [
+          { label:'CANCEL', cls:'ghost' },
+          { label:'START PAIRING', cls:'primary', onClick: () => {
+              goTo('devices');
+              termWrite(['SYSTEM:// PAIRING MODE INITIATED', 'AUTH:// AWAITING DEVICE CONFIRMATION'], { status: 'PAIRING' });
+              toast('Pairing mode initiated — awaiting device confirmation');
+            } }
+        ]
+      });
+      break;
+
+    case 'send-pair-request':
+      sendRealPairRequest();
+      break;
+
+    case 'refresh-pairing':
+      loadAuthorizedDevices().then(() => {
+        render();
+        toast('Authorized Firebase devices refreshed');
+      }).catch(err => toast(err.message || 'Could not refresh devices', 'bad'));
+      break;
+
+    case 'pair-demo':
+      termWrite(['AUTH:// PAIRING CODE ROTATED', 'NETWORK:// BROADCASTING FOR 300s'], { status: 'PAIRING' });
+      toast('New pairing code generated (valid 5 minutes)');
+      break;
+
+    case 'lock-device':
+      openModal({
+        head: '⚠ CONFIRM LOCK',
+        body: `<b>Lock ${esc(dev.short)}?</b><br><br>
+               This sends an authorized lock request through Android's Device Administration API.
+               The device will require its normal unlock method afterwards.<br><br>
+               This system cannot bypass PIN, password or biometric authentication.`,
+        actions: [
+          { label:'CANCEL', cls:'ghost' },
+          { label:'CONFIRM LOCK', cls:'danger', onClick: () => {
+              termWrite([
+                `COMMAND:// LOCK_DEVICE`,
+                `REQUEST:// SENT TO ${dev.short}`,
+                `AUTH:// DEVICE ADMIN VERIFIED`,
+                `STATUS:// COMMAND SUCCESS`
+              ], { status: 'LOCKED' });
+              logActivity(dev, 'Device lock command executed', 'warn');
+              toast('Lock command delivered to ' + dev.short, 'warn');
+            } }
+        ]
+      });
+      break;
+
+    case 'request-stream':
+      if (!dev.online){ toast('Device offline', 'bad'); break; }
+      termWrite([
+        'COMMAND:// REQUEST_MEDIAPROJECTION',
+        `REQUEST:// SENT TO ${dev.short}`,
+        'STATUS:// WAITING FOR ON-DEVICE CONSENT'
+      ], { status: 'PENDING' });
+      logActivity(dev, 'MediaProjection consent requested', 'warn');
+      toast('Awaiting on-device user consent', 'warn');
+      openModal({
+        head: '◉ MEDIAPROJECTION CONSENT',
+        body: `Android requires the device user to explicitly approve screen capture.<br><br>
+               A system consent dialog is shown on <b>${esc(dev.short)}</b>. Streaming begins only after
+               the user taps <b>“Start now”</b>.<br><br>
+               <span style="color:var(--muted-2)">Prototype note: approval is simulated locally for UI validation.</span>`,
+        actions: [
+          { label:'CANCEL', cls:'ghost' },
+          { label:'SIMULATE USER APPROVAL', cls:'primary', onClick: () => {
+              dev.streaming = true;
+              logActivity(dev, 'MediaProjection session authorized by user', 'ok');
+              termWrite([
+                `AUTH:// USER CONSENT GRANTED`,
+                `SESSION:// ENCRYPTED MEDIA CHANNEL OPEN`,
+                `STATUS:// LIVE SCREEN CONNECTED`
+              ], { status: 'STREAMING' });
+              toast('Live screen session established');
+              render();
+            } }
+        ]
+      });
+      break;
+
+    case 'stop-stream':
+      dev.streaming = false;
+      termWrite(['COMMAND:// STOP_STREAM', 'SESSION:// MEDIA CHANNEL CLOSED'], { status: 'READY' });
+      logActivity(dev, 'Screen capture session ended', 'warn');
+      toast('Screen stream stopped');
+      render();
+      break;
+
+    case 'screenshot':
+      if (!dev.online){ toast('Device offline', 'bad'); break; }
+      termWrite([
+        'COMMAND:// CAPTURE_FRAME',
+        `REQUEST:// SENT TO ${dev.short}`,
+        'STATUS:// COMMAND SUCCESS'
+      ], { status: 'READY' });
+      logActivity(dev, 'Single frame capture requested', 'ok');
+      toast('Frame capture request delivered');
+      break;
+
+    case 'toggle-app': {
+      const app = APP_LIST.find(a => a.name === t.dataset.app);
+      if (!app) break;
+      if (dev.perms.apps !== 'granted'){
+        termWrite(['COMMAND:// APP_CONTROL', 'PERMISSION:// REQUIRED', 'STATUS:// ACTION BLOCKED'], { status: 'BLOCKED' });
+        toast('Device Administrator permission required', 'warn');
+        logActivity(dev, `App control blocked — ${app.name}`, 'warn');
+        break;
+      }
+      app.state = app.state === 'blocked' ? 'allowed' : 'blocked';
+      termWrite([
+        `COMMAND:// ${app.state === 'blocked' ? 'BLOCK_APP' : 'ALLOW_APP'}`,
+        `TARGET:// ${app.pkg}`,
+        'STATUS:// COMMAND SUCCESS'
+      ], { status: 'READY' });
+      logActivity(dev, `${app.name} ${app.state === 'blocked' ? 'blocked' : 'allowed'}`, app.state === 'blocked' ? 'warn' : 'ok');
+      toast(`${app.name} ${app.state === 'blocked' ? 'blocked' : 'allowed'}`);
+      render();
+      break;
+    }
+
+    case 'open-notification-settings':
+      toast('Open Android Settings → Notification access on the device', 'warn');
+      termWrite(['SYSTEM:// NOTIFICATION ACCESS SETTINGS REQUESTED', 'STATUS:// AWAITING USER ACTION'], { status: 'PENDING' });
+      break;
+
+    case 'rotate-session':
+      termWrite(['AUTH:// ROTATING SESSION KEY', 'SESSION:// NEW KEY DERIVED', 'STATUS:// COMPLETE'], { status: 'READY' });
+      logActivity(dev, 'Session key rotated', 'ok');
+      toast('Session key rotated');
+      break;
+
+    case 'revoke-session':
+      openModal({
+        head: '⚠ REVOKE SESSION',
+        body: `<b>Revoke the active session for ${esc(dev.short)}?</b><br><br>
+               The device will need to re-authenticate before any further command can be delivered.`,
+        actions: [
+          { label:'CANCEL', cls:'ghost' },
+          { label:'REVOKE', cls:'danger', onClick: () => {
+              termWrite(['SESSION:// REVOKED BY CONTROLLER', 'NETWORK:// CHANNEL CLOSED'], { status: 'OFFLINE' });
+              logActivity(dev, 'Session revoked by controller', 'bad');
+              toast('Session revoked', 'bad');
+            } }
+        ]
+      });
+      break;
+
+    case 'logout':
+      openModal({
+        head: '⏻ LOG OUT',
+        body: `End the controller session and return to the authentication screen?`,
+        actions: [
+          { label:'CANCEL', cls:'ghost' },
+          { label:'LOG OUT', cls:'danger', onClick: () => {
+              termWrite(['SYSTEM:// CONTROLLER SESSION TERMINATED'], { status: 'OFFLINE' });
+              if (window.firebaseAuth) { window.firebaseAuth.signOut().catch(() => {}); }
+              toast('Controller session terminated', 'warn');
+            } }
+        ]
+      });
+      break;
+  }
+});
+
+/* Close modal on backdrop click / Escape */
+$('#modalBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'modalBackdrop') closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+/* ---------------------------------------------------------------
+   UPTIME TICKER
+   --------------------------------------------------------------- */
+setInterval(() => {
+  const dev = DEVICES[state.currentId];
+  if (dev && dev.online){
+    dev.uptime++;
+    const el = document.querySelector('[data-uptime]');
+    if (el) el.textContent = fmtUptime(dev.uptime);
+  }
+}, 1000);
+
+/* ---------------------------------------------------------------
+   MATRIX RAIN
+   --------------------------------------------------------------- */
+(function matrixRain(){
+  if (REDUCED) return;
+  const canvas = $('#matrix');
+  const ctx = canvas.getContext('2d');
+  const chars = 'アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロ0123456789ABCDEF<>/\\|_'.split('');
+  let cols = 0, drops = [], size = 14, last = 0;
+
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols = Math.ceil(canvas.width / size);
+    drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function frame(ts){
+    if (ts - last > 70){
+      last = ts;
+      ctx.fillStyle = 'rgba(4,7,10,0.09)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = size + 'px monospace';
+      for (let i = 0; i < cols; i++){
+        const ch = chars[(Math.random() * chars.length) | 0];
+        const y = drops[i] * size;
+        ctx.fillStyle = Math.random() > 0.97 ? 'rgba(160,255,220,0.9)' : 'rgba(0,255,156,0.62)';
+        ctx.fillText(ch, i * size, y);
+        if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ---------------------------------------------------------------
+   INIT
+   --------------------------------------------------------------- */
+(function init(){
+  // Terminal default state based on viewport
+  state.termOpen = window.innerWidth >= 1100 && !REDUCED;
+  termDock.classList.toggle('collapsed', !state.termOpen);
+  document.body.classList.toggle('term-open', state.termOpen);
+
+  render();
+  bootTerminal();
+})();
+</script>
+\n<script>
+/* ============================================================
+   FIREBASE AUTHENTICATION — Step 1
+   Uses Firebase compat SDK so the existing single-file prototype
+   does not need a build system. No device control is added here.
+   ============================================================ */
+(function firebaseAuthStep(){
+  const STORAGE_KEY = 'cybercontrol_firebase_config_v1';
+  const gate = document.getElementById('firebaseAuthGate');
+  const setupPanel = document.getElementById('firebaseSetupPanel');
+  const loginPanel = document.getElementById('firebaseLoginPanel');
+  const configInput = document.getElementById('firebaseConfigInput');
+  const msg = document.getElementById('firebaseAuthMsg');
+  const badge = document.getElementById('firebaseUserBadge');
+  const email = document.getElementById('firebaseEmail');
+  const password = document.getElementById('firebasePassword');
+
+  function setMsg(text, type=''){
+    msg.textContent = text;
+    msg.className = 'firebase-auth-msg' + (type ? ' '+type : '');
+  }
+
+  function showSetup(){
+    setupPanel.hidden = false;
+    loginPanel.hidden = true;
+    setMsg('Paste the Firebase config copied from Project settings.');
+  }
+
+  function showLogin(){
+    setupPanel.hidden = true;
+    loginPanel.hidden = false;
+    setMsg('Firebase is connected. Login with your controller account.', 'ok');
+  }
+
+  function extractConfig(raw){
+    const keys = ['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId','measurementId'];
+    const out = {};
+    for (const key of keys){
+      const re = new RegExp(key + '\\s*:\\s*[\\\"\\\']([^\\\"\\\']+)[\\\"\\\']');
+      const m = raw.match(re);
+      if (m) out[key] = m[1];
+    }
+    const required = ['apiKey','authDomain','projectId','appId'];
+    if (required.some(k => !out[k])) throw new Error('Config incomplete. Paste the complete Firebase config snippet.');
+    return out;
+  }
+
+  function saveConfig(cfg){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  }
+
+  function loadConfig(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+
+  function clearConfig(){
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+
+  async function initFirebase(cfg){
+    if (!window.firebase) throw new Error('Firebase SDK did not load. Check internet connection.');
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    window.firebaseAuth = firebase.auth();
+    showLogin();
+
+    firebaseAuth.onAuthStateChanged(user => {
+      if (user){
+        gate.hidden = true;
+        document.body.classList.remove('firebase-wait');
+        badge.hidden = false;
+        badge.innerHTML = 'AUTH:// <b>'+escapeHtml(user.email || user.uid)+'</b>';
+        setMsg('Authenticated.', 'ok');
+        if (typeof window.toast === 'function') window.toast('Controller authenticated');
+      } else {
+        gate.hidden = false;
+        document.body.classList.add('firebase-wait');
+        badge.hidden = true;
+        showLogin();
+      }
+    });
+  }
+
+  function escapeHtml(v){
+    return String(v).replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+  }
+
+  document.getElementById('firebaseSaveConfig').addEventListener('click', async () => {
+    try{
+      const cfg = extractConfig(configInput.value.trim());
+      saveConfig(cfg);
+      setMsg('Connecting to Firebase…');
+      await initFirebase(cfg);
+    }catch(e){
+      setMsg(e.message || 'Firebase setup failed.', 'err');
+    }
+  });
+
+  document.getElementById('firebaseLoginBtn').addEventListener('click', async () => {
+    const e = email.value.trim(), p = password.value;
+    if (!e || !p) return setMsg('Enter email and password.', 'err');
+    try{
+      setMsg('Signing in…');
+      await firebaseAuth.signInWithEmailAndPassword(e,p);
+    }catch(err){
+      setMsg(err.message || 'Login failed.', 'err');
+    }
+  });
+
+  document.getElementById('firebaseSignupBtn').addEventListener('click', async () => {
+    const e = email.value.trim(), p = password.value;
+    if (!e || !p) return setMsg('Enter email and password.', 'err');
+    if (p.length < 6) return setMsg('Firebase passwords must be at least 6 characters.', 'err');
+    try{
+      setMsg('Creating account…');
+      await firebaseAuth.createUserWithEmailAndPassword(e,p);
+    }catch(err){
+      setMsg(err.message || 'Account creation failed.', 'err');
+    }
+  });
+
+  document.getElementById('firebaseResetBtn').addEventListener('click', async () => {
+    const e = email.value.trim();
+    if (!e) return setMsg('Enter your email first.', 'err');
+    try{
+      await firebaseAuth.sendPasswordResetEmail(e);
+      setMsg('Password reset email sent.', 'ok');
+    }catch(err){
+      setMsg(err.message || 'Could not send reset email.', 'err');
+    }
+  });
+
+  document.getElementById('firebaseClearConfigBtn').addEventListener('click', clearConfig);
+
+  const existing = loadConfig();
+  if (existing){
+    setMsg('Loading saved Firebase configuration…');
+    initFirebase(existing).catch(e => {
+      setMsg(e.message || 'Firebase initialization failed.', 'err');
+      showSetup();
+    });
+  } else {
+    showSetup();
+  }
+})();
+</script>\n<script>
+/* ============================================================
+   FIREBASE PAIRING — Step 2A
+   Controller-side request creation + approved-device loading.
+   A request never grants access by itself.
+   ============================================================ */
+(function firebasePairingStep(){
+  const DEVICE_KEY = 'cybercontrol_pairing_device_v1';
+  let activeRequestUnsub = null;
+
+  function currentUser(){
+    return window.firebaseAuth && window.firebaseAuth.currentUser ? window.firebaseAuth.currentUser : null;
+  }
+
+  function db(){
+    if (!window.firebase || !firebase.apps.length) throw new Error('Firebase is not initialized.');
+    if (!window.firebaseDb) window.firebaseDb = firebase.firestore();
+    return window.firebaseDb;
+  }
+
+  function setPairStatus(text, kind=''){
+    const box = document.getElementById('pairingStatusBox');
+    if (!box) return;
+    box.style.display = 'block';
+    box.className = 'notice ' + (kind || '');
+    box.innerHTML = '<span class="notice-ico">' + (kind === 'bad' ? '⚠' : kind === 'ok' ? '✓' : '◈') + '</span><div>' + escapePairHtml(text) + '</div>';
+  }
+
+  function escapePairHtml(v){
+    return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  }
+
+  function upsertRealDevice(data, access){
+    const id = 'F_' + data.deviceId;
+    const old = DEVICES[id] || {};
+    const online = data.status === 'online' || data.status === 'ONLINE';
+    DEVICES[id] = {
+      ...old,
+      id,
+      real: true,
+      firestoreId: data.deviceId,
+      ownerUid: data.ownerUid,
+      name: data.deviceName || 'PHONE B',
+      short: data.deviceName || 'PHONE B',
+      model: data.platform || 'Android',
+      online,
+      battery: data.battery != null ? Number(data.battery) : null,
+      charging: !!data.charging,
+      network: data.network || '—',
+      latency: data.latency != null ? Number(data.latency) : null,
+      uptime: Number(data.uptime || 0),
+      lastSeen: data.lastSeen || 'Unknown',
+      lastSync: data.lastSeen || 'Unknown',
+      pairing: 'VERIFIED',
+      session: 'ENCRYPTED',
+      trust: 'TRUSTED',
+      lastAuth: nowTime(),
+      streaming: false,
+      perms: old.perms || {
+        location:'review', notifications:'review', screen:'review', calllog:'review',
+        contacts:'review', gallery:'review', sms:'review', apps:'review', deviceadmin:'review'
+      },
+      activity: old.activity || [],
+      accessStatus: access.status || 'active'
+    };
+    if (!state.currentId || state.currentId === 'B' && !DEVICES.B?.real) state.currentId = id;
+  }
+
+  async function loadAuthorizedDevices(){
+    const user = currentUser();
+    if (!user) return;
+    const snap = await db().collection('deviceAccess')
+      .where('controllerUid', '==', user.uid)
+      .get();
+    let loaded = 0;
+    for (const doc of snap.docs){
+      const access = doc.data();
+      if (access.status !== 'active') continue;
+      try{
+        const deviceSnap = await db().collection('devices').doc(access.deviceId).get();
+        if (!deviceSnap.exists) continue;
+        upsertRealDevice(deviceSnap.data(), access);
+        loaded++;
+      }catch(e){
+        console.warn('Device load skipped:', e);
+      }
+    }
+    return loaded;
+  }
+
+  async function watchRequest(requestId, deviceId){
+    if (activeRequestUnsub) activeRequestUnsub();
+    activeRequestUnsub = db().collection('pairingRequests').doc(requestId).onSnapshot(async snap => {
+      if (!snap.exists) return;
+      const d = snap.data();
+      const status = d.status || 'pending';
+      if (status === 'approved'){
+        setPairStatus('Phone B approved the request. Waiting for the active deviceAccess record…', 'ok');
+        try{
+          const accessSnap = await db().collection('deviceAccess').doc(deviceId + '_' + currentUser().uid).get();
+          if (accessSnap.exists && accessSnap.data().status === 'active'){
+            await loadAuthorizedDevices();
+            render();
+            setPairStatus('PAIRING COMPLETE — Phone B is now authorized for this controller.', 'ok');
+            termWrite(['AUTH:// PAIRING APPROVED', 'DEVICE:// AUTHORIZED TARGET LOADED', 'SESSION:// TRUST ESTABLISHED'], {status:'LINKED'});
+            termCursor(true);
+          }
+        }catch(e){
+          setPairStatus('Approved, but access record is not active yet. Wait a moment and refresh.', 'warn');
+        }
+      } else if (status === 'rejected' || status === 'revoked'){
+        setPairStatus('Pairing request status: ' + status.toUpperCase(), 'bad');
+      } else {
+        setPairStatus('PAIRING REQUEST PENDING — waiting for Phone B approval.', 'warn');
+      }
+    });
+  }
+
+  window.sendRealPairRequest = async function(){
+    const user = currentUser();
+    if (!user) return toast('Login to the controller first', 'bad');
+    let deviceId = (document.getElementById('pairDeviceId')?.value || '').trim();
+    let ownerUid = (document.getElementById('pairOwnerUid')?.value || '').trim();
+    if (!deviceId || !ownerUid){
+      setPairStatus('Device ID এবং Owner UID দুটোই দিতে হবে।', 'bad');
+      return;
+    }
+    if (deviceId.length < 6 || ownerUid.length < 6){
+      setPairStatus('Device ID বা Owner UID সঠিক মনে হচ্ছে না। Phone B app-এর screen থেকে আবার কপি করো।', 'bad');
+      return;
+    }
+    try{
+      const ref = await db().collection('pairingRequests').add({
+        deviceId,
+        controllerUid: user.uid,
+        deviceOwnerUid: ownerUid,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      localStorage.setItem(DEVICE_KEY, JSON.stringify({requestId:ref.id, deviceId, ownerUid}));
+      setPairStatus('PAIRING REQUEST SENT — Phone B-তে approval দিতে হবে.', 'warn');
+      termWrite(['AUTH:// PAIRING REQUEST CREATED', `DEVICE:// ${deviceId}`, 'STATUS:// WAITING FOR PHONE B APPROVAL'], {status:'PAIRING'});
+      termCursor(false);
+      await watchRequest(ref.id, deviceId);
+    }catch(e){
+      console.error(e);
+      setPairStatus('Pairing request তৈরি করা যায়নি: ' + (e.message || 'Firestore error'), 'bad');
+    }
+  };
+
+  window.loadAuthorizedDevices = loadAuthorizedDevices;
+
+  function attachAuthListener(){
+    if (!window.firebaseAuth) return setTimeout(attachAuthListener, 250);
+    firebaseAuth.onAuthStateChanged(async user => {
+      if (!user) return;
+      try{
+        window.firebaseDb = firebase.firestore();
+        await loadAuthorizedDevices();
+        const saved = JSON.parse(localStorage.getItem(DEVICE_KEY) || 'null');
+        if (saved && saved.requestId){
+          await watchRequest(saved.requestId, saved.deviceId);
+        }
+        render();
+      }catch(e){
+        console.warn('Pairing init:', e);
+      }
+    });
+  }
+
+  attachAuthListener();
+})();
+</script>
+</body>
+</html>
