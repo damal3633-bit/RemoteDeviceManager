@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.InputType;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.EditText;
@@ -97,7 +98,8 @@ public class MainActivity extends Activity {
                 createInput("Password");
 
         passwordInput.setInputType(
-                0x00000081
+                InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_PASSWORD
         );
 
         loginButton =
@@ -113,9 +115,7 @@ public class MainActivity extends Activity {
         );
 
         statusText =
-                createText(
-                        "Ready"
-                );
+                createText("Ready");
 
         root.addView(title);
         root.addView(subtitle);
@@ -191,6 +191,7 @@ public class MainActivity extends Activity {
                         runOnUiThread(() -> {
 
                             saveLogin(result);
+
                             showDeviceScreen();
 
                         });
@@ -306,7 +307,7 @@ public class MainActivity extends Activity {
                 );
 
         String deviceId =
-                getDeviceId();
+                getLocalDeviceId();
 
         String deviceName =
                 "Phone B - "
@@ -365,7 +366,16 @@ public class MainActivity extends Activity {
         );
     }
 
-    private String getDeviceId() {
+    /*
+     * IMPORTANT:
+     * This method is intentionally named
+     * getLocalDeviceId().
+     *
+     * Android Context already has a getDeviceId()
+     * method, so using getDeviceId() here caused
+     * the Java compilation error.
+     */
+    private String getLocalDeviceId() {
 
         String saved =
                 preferences.getString(
