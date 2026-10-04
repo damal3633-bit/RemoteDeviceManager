@@ -1,9 +1,12 @@
 package com.example.remotedevicemanager;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
@@ -14,11 +17,14 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
@@ -35,6 +41,9 @@ public class MainActivity extends Activity {
     private static final String KEY_DEVICE_ID =
             "deviceId";
 
+    private static final long PAIRING_CHECK_INTERVAL =
+            5000L;
+
     private EditText emailInput;
     private EditText passwordInput;
 
@@ -46,8 +55,38 @@ public class MainActivity extends Activity {
 
     private SharedPreferences preferences;
 
+    private final Handler pairingHandler =
+            new Handler(Looper.getMainLooper());
+
+    private final Set<String> shownRequestIds =
+            new HashSet<>();
+
+    private boolean pairingCheckRunning = false;
+
+    private final Runnable pairingChecker =
+            new Runnable() {
+
+                @Override
+                public void run() {
+
+                    if (!isLoggedIn()) {
+                        pairingCheckRunning = false;
+                        return;
+                    }
+
+                    checkPairingRequests();
+
+                    pairingHandler.postDelayed(
+                            this,
+                            PAIRING_CHECK_INTERVAL
+                    );
+                }
+            };
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(
+            Bundle savedInstanceState
+    ) {
 
         super.onCreate(savedInstanceState);
 
@@ -58,8 +97,11 @@ public class MainActivity extends Activity {
                 );
 
         if (isLoggedIn()) {
+
             showDeviceScreen();
+
         } else {
+
             showLoginScreen();
         }
     }
@@ -77,6 +119,8 @@ public class MainActivity extends Activity {
     }
 
     private void showLoginScreen() {
+
+        stopPairingChecker();
 
         LinearLayout root =
                 createRoot();
@@ -134,7 +178,9 @@ public class MainActivity extends Activity {
         );
     }
 
-    private void login(boolean createAccount) {
+    private void login(
+            boolean createAccount
+    ) {
 
         String email =
                 emailInput
@@ -193,7 +239,6 @@ public class MainActivity extends Activity {
                             saveLogin(result);
 
                             showDeviceScreen();
-
                         });
                     }
 
@@ -259,7 +304,9 @@ public class MainActivity extends Activity {
                 createRoot();
 
         TextView title =
-                createTitle("PHONE B");
+                createTitle(
+                        "PHONE B"
+                );
 
         TextView subtitle =
                 createText(
@@ -274,16 +321,30 @@ public class MainActivity extends Activity {
                         "Registering device..."
                 );
 
+        Button refreshButton =
+                new Button(this);
+
+        refreshButton.setText(
+                "CHECK PAIRING"
+        );
+
         Button logoutButton =
                 new Button(this);
 
-        logoutButton.setText("LOGOUT");
+        logoutButton.setText(
+                "LOGOUT"
+        );
 
         root.addView(title);
         root.addView(subtitle);
         root.addView(deviceText);
         root.addView(statusText);
+        root.addView(refreshButton);
         root.addView(logoutButton);
+
+        refreshButton.setOnClickListener(
+                v -> checkPairingRequests()
+        );
 
         logoutButton.setOnClickListener(
                 v -> logout()
@@ -343,11 +404,14 @@ public class MainActivity extends Activity {
                             JSONObject result
                     ) {
 
-                        runOnUiThread(() ->
-                                showStatus(
-                                        "✓ Phone B registered successfully."
-                                )
-                        );
+                        runOnUiThread(() -> {
+
+                            showStatus(
+                                    "✓ Phone B registered successfully."
+                            );
+
+                            startPairingChecker();
+                        });
                     }
 
                     @Override
@@ -366,15 +430,315 @@ public class MainActivity extends Activity {
         );
     }
 
-    /*
-     * IMPORTANT:
-     * This method is intentionally named
-     * getLocalDeviceId().
-     *
-     * Android Context already has a getDeviceId()
-     * method, so using getDeviceId() here caused
-     * the Java compilation error.
-     */
+    private void startPairingChecker() {
+
+        if (pairingCheckRunning) {
+            return;
+        }
+
+        pairingCheckRunning = true;
+
+        pairingHandler.removeCallbacks(
+                pairingChecker
+        );
+
+        pairingHandler.post(
+                pairingChecker
+        );
+    }
+
+    private void stopPairingChecker() {
+
+        pairingCheckRunning = false;
+
+        pairingHandler.removeCallbacks(
+                pairingChecker
+        );
+    }
+
+    private void checkPairingRequests() {
+
+        String token =
+                preferences.getString(
+                        KEY_TOKEN,
+                        ""
+                );
+
+        String uid =
+                preferences.getString(
+                        KEY_UID,
+                        ""
+                );
+
+        if (token.isEmpty()
+                || uid.isEmpty()) {
+
+            return;
+        }
+
+        ApiClient.getPendingPairingRequests(
+                token,
+                uid,
+                new ApiClient.Callback() {
+
+                    @Override
+                    public void onSuccess(
+                            JSONObject result
+                    ) {
+
+                        runOnUiThread(() ->
+                                handlePairingResults(
+                                        result
+                                )
+                        );
+                    }
+
+                    @Override
+                    public void onError(
+                            String message
+                    ) {
+
+                        runOnUiThread(() -> {
+
+                            if (message != null
+                                    && !message.isEmpty()) {
+
+                                statusText.setText(
+                                        "Pairing check:\n"
+                                                + message
+                                );
+                            }
+                        });
+                    }
+                }
+        );
+    }
+
+    private void handlePairingResults(
+            JSONObject result
+    ) {
+
+        JSONArray requests =
+                result.optJSONArray(
+                        "requests"
+                );
+
+        if (requests == null
+                || requests.length() == 0) {
+
+            statusText.setText(
+                    "✓ Device online\n"
+                            + "No pending pairing request."
+            );
+
+            return;
+        }
+
+        for (int i = 0;
+             i < requests.length();
+             i++) {
+
+            JSONObject request =
+                    requests.optJSONObject(i);
+
+            if (request == null) {
+                continue;
+            }
+
+            String requestId =
+                    request.optString(
+                            "requestId",
+                            ""
+                    );
+
+            if (requestId.isEmpty()) {
+                continue;
+            }
+
+            if (shownRequestIds.contains(
+                    requestId
+            )) {
+                continue;
+            }
+
+            shownRequestIds.add(requestId);
+
+            showPairingDialog(request);
+
+            break;
+        }
+    }
+
+    private void showPairingDialog(
+            JSONObject request
+    ) {
+
+        String requestId =
+                request.optString(
+                        "requestId",
+                        ""
+                );
+
+        String deviceId =
+                request.optString(
+                        "deviceId",
+                        ""
+                );
+
+        String controllerUid =
+                request.optString(
+                        "controllerUid",
+                        ""
+                );
+
+        String message =
+                "একটি Controller এই Phone B-এর সাথে "
+                        + "pair করতে চাইছে।\n\n"
+                        + "Controller UID:\n"
+                        + controllerUid
+                        + "\n\nDevice ID:\n"
+                        + deviceId
+                        + "\n\n"
+                        + "তুমি অনুমতি দিলে Controller "
+                        + "এই device-এর authorized access পাবে।";
+
+        new AlertDialog.Builder(this)
+                .setTitle(
+                        "PAIRING REQUEST"
+                )
+                .setMessage(message)
+                .setCancelable(false)
+                .setNegativeButton(
+                        "CANCEL",
+                        (dialog, which) -> {
+
+                            shownRequestIds.remove(
+                                    requestId
+                            );
+
+                            dialog.dismiss();
+                        }
+                )
+                .setPositiveButton(
+                        "APPROVE",
+                        (dialog, which) -> {
+
+                            approvePairing(request);
+                        }
+                )
+                .show();
+    }
+
+    private void approvePairing(
+            JSONObject request
+    ) {
+
+        String token =
+                preferences.getString(
+                        KEY_TOKEN,
+                        ""
+                );
+
+        String ownerUid =
+                preferences.getString(
+                        KEY_UID,
+                        ""
+                );
+
+        String requestId =
+                request.optString(
+                        "requestId",
+                        ""
+                );
+
+        String deviceId =
+                request.optString(
+                        "deviceId",
+                        ""
+                );
+
+        String controllerUid =
+                request.optString(
+                        "controllerUid",
+                        ""
+                );
+
+        String createdAt =
+                request.optString(
+                        "createdAt",
+                        currentTime()
+                );
+
+        String approvedAt =
+                currentTime();
+
+        if (requestId.isEmpty()
+                || deviceId.isEmpty()
+                || controllerUid.isEmpty()
+                || ownerUid.isEmpty()
+                || token.isEmpty()) {
+
+            showStatus(
+                    "Pairing data incomplete."
+            );
+
+            return;
+        }
+
+        showStatus(
+                "Pairing approve হচ্ছে..."
+        );
+
+        ApiClient.approvePairingRequest(
+                token,
+                requestId,
+                deviceId,
+                controllerUid,
+                ownerUid,
+                createdAt,
+                approvedAt,
+                new ApiClient.Callback() {
+
+                    @Override
+                    public void onSuccess(
+                            JSONObject result
+                    ) {
+
+                        runOnUiThread(() -> {
+
+                            showStatus(
+                                    "✓ Pairing approved successfully."
+                            );
+
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Controller authorized.",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        });
+                    }
+
+                    @Override
+                    public void onError(
+                            String message
+                    ) {
+
+                        runOnUiThread(() -> {
+
+                            shownRequestIds.remove(
+                                    requestId
+                            );
+
+                            showStatus(
+                                    "Pairing approval failed:\n"
+                                            + message
+                            );
+                        });
+                    }
+                }
+        );
+    }
+
     private String getLocalDeviceId() {
 
         String saved =
@@ -399,7 +763,8 @@ public class MainActivity extends Activity {
                 && !androidId.isEmpty()) {
 
             deviceId =
-                    "android_" + androidId;
+                    "android_"
+                            + androidId;
 
         } else {
 
@@ -426,10 +791,14 @@ public class MainActivity extends Activity {
 
     private void logout() {
 
+        stopPairingChecker();
+
         preferences
                 .edit()
                 .clear()
                 .apply();
+
+        shownRequestIds.clear();
 
         showLoginScreen();
     }
@@ -447,8 +816,11 @@ public class MainActivity extends Activity {
         return new SimpleDateFormat(
                 "yyyy-MM-dd'T'HH:mm:ssXXX",
                 Locale.US
-        ).format(new Date());
+        ).format(
+                new Date()
+        );
     }
+
 
     private LinearLayout createRoot() {
 
@@ -541,7 +913,10 @@ public class MainActivity extends Activity {
     ) {
 
         if (statusText != null) {
-            statusText.setText(message);
+
+            statusText.setText(
+                    message
+            );
         }
 
         Toast.makeText(
@@ -549,5 +924,13 @@ public class MainActivity extends Activity {
                 message,
                 Toast.LENGTH_SHORT
         ).show();
+    }
+
+    @Override
+    protected void onDestroy() {
+
+        stopPairingChecker();
+
+        super.onDestroy();
     }
 }
