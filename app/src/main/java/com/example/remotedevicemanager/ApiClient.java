@@ -708,11 +708,7 @@ public class ApiClient {
                 );
 
                 int accessResponseCode =
-                        accessConnection.getResponseCode();
-                
-                int accessResponseCode =
-                        accessConnection.getResponseCode();
-
+                        accessConnection.getResponseCode();                             
                 String accessResponse =
                         readResponse(
                                 accessConnection,
