@@ -1,5 +1,6 @@
 package com.example.remotedevicemanager;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -55,13 +56,10 @@ public class ApiClient {
             String password,
             Callback callback
     ) {
-
         new Thread(() -> {
-
             HttpURLConnection connection = null;
 
             try {
-
                 String urlString =
                         AUTH_BASE
                                 + endpoint
@@ -70,8 +68,7 @@ public class ApiClient {
 
                 URL url = new URL(urlString);
 
-                connection =
-                        (HttpURLConnection) url.openConnection();
+                connection = (HttpURLConnection) url.openConnection();
 
                 connection.setRequestMethod("POST");
                 connection.setConnectTimeout(15000);
@@ -84,8 +81,7 @@ public class ApiClient {
 
                 connection.setDoOutput(true);
 
-                JSONObject body =
-                        new JSONObject();
+                JSONObject body = new JSONObject();
 
                 body.put("email", email);
                 body.put("password", password);
@@ -133,7 +129,6 @@ public class ApiClient {
                     connection.disconnect();
                 }
             }
-
         }).start();
     }
 
@@ -148,7 +143,6 @@ public class ApiClient {
             String lastSeen,
             Callback callback
     ) {
-
         new Thread(() -> {
 
             HttpURLConnection connection = null;
@@ -170,17 +164,10 @@ public class ApiClient {
                         (HttpURLConnection)
                                 url.openConnection();
 
-                connection.setRequestMethod(
-                        "PATCH"
-                );
+                connection.setRequestMethod("PATCH");
 
-                connection.setConnectTimeout(
-                        15000
-                );
-
-                connection.setReadTimeout(
-                        20000
-                );
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(20000);
 
                 connection.setRequestProperty(
                         "Authorization",
@@ -277,7 +264,446 @@ public class ApiClient {
                     connection.disconnect();
                 }
             }
+        }).start();
+    }
 
+    /*
+     * PHONE B:
+     * Firebase থেকে pending pairing request খুঁজবে।
+     */
+    public static void getPendingPairingRequests(
+            String idToken,
+            String deviceOwnerUid,
+            Callback callback
+    ) {
+        new Thread(() -> {
+
+            HttpURLConnection connection = null;
+
+            try {
+
+                String urlString =
+                        FIRESTORE_BASE
+                                + FirebaseConfig.PROJECT_ID
+                                + "/databases/"
+                                + FirebaseConfig.FIRESTORE_DATABASE
+                                + "/documents/pairingRequests"
+                                + "?pageSize=100";
+
+                URL url =
+                        new URL(urlString);
+
+                connection =
+                        (HttpURLConnection)
+                                url.openConnection();
+
+                connection.setRequestMethod("GET");
+
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(20000);
+
+                connection.setRequestProperty(
+                        "Authorization",
+                        "Bearer " + idToken
+                );
+
+                int responseCode =
+                        connection.getResponseCode();
+
+                String response =
+                        readResponse(
+                                connection,
+                                responseCode
+                        );
+
+                JSONObject json =
+                        new JSONObject(response);
+
+                if (responseCode < 200
+                        || responseCode >= 300) {
+
+                    callback.onError(
+                            firestoreError(json)
+                    );
+
+                    return;
+                }
+
+                JSONArray documents =
+                        json.optJSONArray("documents");
+
+                JSONArray requests =
+                        new JSONArray();
+
+                if (documents != null) {
+
+                    for (int i = 0;
+                         i < documents.length();
+                         i++) {
+
+                        JSONObject document =
+                                documents.optJSONObject(i);
+
+                        if (document == null) {
+                            continue;
+                        }
+
+                        JSONObject fields =
+                                document.optJSONObject(
+                                        "fields"
+                                );
+
+                        if (fields == null) {
+                            continue;
+                        }
+
+                        String ownerUid =
+                                fieldString(
+                                        fields,
+                                        "deviceOwnerUid"
+                                );
+
+                        String status =
+                                fieldString(
+                                        fields,
+                                        "status"
+                                );
+
+                        if (!deviceOwnerUid.equals(ownerUid)) {
+                            continue;
+                        }
+
+                        if (!"pending".equals(status)) {
+                            continue;
+                        }
+
+                        String requestId =
+                                lastPathPart(
+                                        document.optString(
+                                                "name",
+                                                ""
+                                        )
+                                );
+
+                        JSONObject request =
+                                new JSONObject();
+
+                        request.put(
+                                "requestId",
+                                requestId
+                        );
+
+                        request.put(
+                                "deviceId",
+                                fieldString(
+                                        fields,
+                                        "deviceId"
+                                )
+                        );
+
+                        request.put(
+                                "controllerUid",
+                                fieldString(
+                                        fields,
+                                        "controllerUid"
+                                )
+                        );
+
+                        request.put(
+                                "deviceOwnerUid",
+                                ownerUid
+                        );
+
+                        request.put(
+                                "status",
+                                status
+                        );
+
+                        request.put(
+                                "createdAt",
+                                fieldString(
+                                        fields,
+                                        "createdAt"
+                                )
+                        );
+
+                        requests.put(request);
+                    }
+                }
+
+                JSONObject result =
+                        new JSONObject();
+
+                result.put(
+                        "requests",
+                        requests
+                );
+
+                callback.onSuccess(result);
+
+            } catch (Exception e) {
+
+                callback.onError(
+                        "Pairing check error: "
+                                + e.getMessage()
+                );
+
+            } finally {
+
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    /*
+     * PHONE B:
+     * Owner pairing request approve করলে
+     * deviceAccess তৈরি হবে এবং request approved হবে।
+     */
+    public static void approvePairingRequest(
+            String idToken,
+            String requestId,
+            String deviceId,
+            String controllerUid,
+            String ownerUid,
+            String createdAt,
+            String approvedAt,
+            Callback callback
+    ) {
+        new Thread(() -> {
+
+            HttpURLConnection accessConnection = null;
+            HttpURLConnection requestConnection = null;
+
+            try {
+
+                String accessId =
+                        deviceId
+                                + "_"
+                                + controllerUid;
+
+                String accessUrl =
+                        FIRESTORE_BASE
+                                + FirebaseConfig.PROJECT_ID
+                                + "/databases/"
+                                + FirebaseConfig.FIRESTORE_DATABASE
+                                + "/documents/deviceAccess/"
+                                + accessId;
+
+                URL accessUrlObject =
+                        new URL(accessUrl);
+
+                accessConnection =
+                        (HttpURLConnection)
+                                accessUrlObject.openConnection();
+
+                accessConnection.setRequestMethod("PATCH");
+
+                accessConnection.setConnectTimeout(15000);
+                accessConnection.setReadTimeout(20000);
+
+                accessConnection.setRequestProperty(
+                        "Authorization",
+                        "Bearer " + idToken
+                );
+
+                accessConnection.setRequestProperty(
+                        "Content-Type",
+                        "application/json"
+                );
+
+                accessConnection.setDoOutput(true);
+
+                JSONObject accessFields =
+                        new JSONObject();
+
+                accessFields.put(
+                        "deviceId",
+                        stringField(deviceId)
+                );
+
+                accessFields.put(
+                        "controllerUid",
+                        stringField(controllerUid)
+                );
+
+                accessFields.put(
+                        "ownerUid",
+                        stringField(ownerUid)
+                );
+
+                accessFields.put(
+                        "status",
+                        stringField("active")
+                );
+
+                accessFields.put(
+                        "createdAt",
+                        stringField(createdAt)
+                );
+
+                JSONObject accessDocument =
+                        new JSONObject();
+
+                accessDocument.put(
+                        "fields",
+                        accessFields
+                );
+
+                writeBody(
+                        accessConnection,
+                        accessDocument.toString()
+                );
+
+                int accessResponseCode =
+                        accessConnection.getResponseCode();
+
+                String accessResponse =
+                        readResponse(
+                                accessConnection,
+                                accessResponseCode
+                        );
+
+                if (accessResponseCode < 200
+                        || accessResponseCode >= 300) {
+
+                    JSONObject accessJson =
+                            new JSONObject(
+                                    accessResponse
+                            );
+
+                    callback.onError(
+                            firestoreError(accessJson)
+                    );
+
+                    return;
+                }
+
+                String requestUrl =
+                        FIRESTORE_BASE
+                                + FirebaseConfig.PROJECT_ID
+                                + "/databases/"
+                                + FirebaseConfig.FIRESTORE_DATABASE
+                                + "/documents/pairingRequests/"
+                                + requestId;
+
+                URL requestUrlObject =
+                        new URL(requestUrl);
+
+                requestConnection =
+                        (HttpURLConnection)
+                                requestUrlObject.openConnection();
+
+                requestConnection.setRequestMethod("PATCH");
+
+                requestConnection.setConnectTimeout(15000);
+                requestConnection.setReadTimeout(20000);
+
+                requestConnection.setRequestProperty(
+                        "Authorization",
+                        "Bearer " + idToken
+                );
+
+                requestConnection.setRequestProperty(
+                        "Content-Type",
+                        "application/json"
+                );
+
+                requestConnection.setDoOutput(true);
+
+                JSONObject requestFields =
+                        new JSONObject();
+
+                requestFields.put(
+                        "deviceId",
+                        stringField(deviceId)
+                );
+
+                requestFields.put(
+                        "controllerUid",
+                        stringField(controllerUid)
+                );
+
+                requestFields.put(
+                        "deviceOwnerUid",
+                        stringField(ownerUid)
+                );
+
+                requestFields.put(
+                        "status",
+                        stringField("approved")
+                );
+
+                requestFields.put(
+                        "createdAt",
+                        stringField(createdAt)
+                );
+
+                requestFields.put(
+                        "approvedAt",
+                        stringField(approvedAt)
+                );
+
+                JSONObject requestDocument =
+                        new JSONObject();
+
+                requestDocument.put(
+                        "fields",
+                        requestFields
+                );
+
+                writeBody(
+                        requestConnection,
+                        requestDocument.toString()
+                );
+
+                int requestResponseCode =
+                        requestConnection.getResponseCode();
+
+                String requestResponse =
+                        readResponse(
+                                requestConnection,
+                                requestResponseCode
+                        );
+
+                JSONObject requestJson =
+                        new JSONObject(
+                                requestResponse
+                        );
+
+                if (requestResponseCode >= 200
+                        && requestResponseCode < 300) {
+
+                    callback.onSuccess(
+                            requestJson
+                    );
+
+                } else {
+
+                    callback.onError(
+                            firestoreError(requestJson)
+                    );
+                }
+
+              } catch (Exception e) {
+
+                callback.onError(
+                        "Pairing approval error: "
+                                + e.getMessage()
+                );
+
+            } finally {
+
+                if (accessConnection != null) {
+                    accessConnection.disconnect();
+                }
+
+                if (requestConnection != null) {
+                    requestConnection.disconnect();
+                }
+            }
         }).start();
     }
 
@@ -294,6 +720,44 @@ public class ApiClient {
         );
 
         return field;
+    }
+
+    private static String fieldString(
+            JSONObject fields,
+            String name
+    ) {
+
+        JSONObject field =
+                fields.optJSONObject(name);
+
+        if (field == null) {
+            return "";
+        }
+
+        return field.optString(
+                "stringValue",
+                ""
+        );
+    }
+
+    private static String lastPathPart(
+            String path
+    ) {
+
+        if (path == null || path.isEmpty()) {
+            return "";
+        }
+
+        int index =
+                path.lastIndexOf('/');
+
+        if (index < 0
+                || index == path.length() - 1) {
+
+            return path;
+        }
+
+        return path.substring(index + 1);
     }
 
     private static void writeBody(
@@ -422,4 +886,4 @@ public class ApiClient {
             return "Firestore request failed";
         }
     }
-    }
+}
